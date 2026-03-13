@@ -1,12 +1,17 @@
 import { Router } from "express";
+import type { AppRepository, EnvironmentRepository } from "@semaforo/domain";
 import type { CreateEnvironment } from "../../../application/CreateEnvironment.js";
 import type { ListEnvironments } from "../../../application/ListEnvironments.js";
 import type { UpdateEnvironment } from "../../../application/UpdateEnvironment.js";
+import type { ToggleCache } from "../../cache/RedisToggleCache.js";
 
 export function environmentRoutes(
   createEnvironment: CreateEnvironment,
   listEnvironments: ListEnvironments,
-  updateEnvironment: UpdateEnvironment
+  updateEnvironment: UpdateEnvironment,
+  appRepository: AppRepository,
+  environmentRepository: EnvironmentRepository,
+  cache: ToggleCache
 ): Router {
   const router = Router();
 
@@ -52,6 +57,27 @@ export function environmentRoutes(
       } else {
         res.status(400).json({ error: message });
       }
+    }
+  });
+
+  router.delete("/environments/:environmentId/cache", async (req, res) => {
+    try {
+      const env = await environmentRepository.findById(req.params.environmentId);
+      if (!env) {
+        res.status(404).json({ error: "Environment not found" });
+        return;
+      }
+
+      const app = await appRepository.findById(env.appId);
+      if (!app) {
+        res.status(404).json({ error: "App not found" });
+        return;
+      }
+
+      await cache.invalidate(app.key, env.key);
+      res.json({ cleared: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear cache" });
     }
   });
 

@@ -47,13 +47,15 @@ export function createExpressApp(
     environmentRepository
   );
   const listEnvironments = new ListEnvironments(environmentRepository);
-  const updateEnvironmentUseCase = new UpdateEnvironment(environmentRepository);
+  const updateEnvironmentUseCase = new UpdateEnvironment(environmentRepository, appRepository, cache);
   const createToggle = new CreateFeatureToggle(appRepository, toggleRepository);
   const listToggles = new ListToggles(toggleRepository);
   const setToggleValue = new SetToggleValue(
     toggleRepository,
     environmentRepository,
-    toggleValueRepository
+    toggleValueRepository,
+    appRepository,
+    cache
   );
   const getPublicToggles = new GetPublicToggles(
     appRepository,
@@ -68,7 +70,7 @@ export function createExpressApp(
   app.use("/api/apps", appRoutes(createAppUseCase, listApps, getApp));
   app.use(
     "/api",
-    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase)
+    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache)
   );
   app.use("/api", toggleRoutes(createToggle, setToggleValue, listToggles));
 

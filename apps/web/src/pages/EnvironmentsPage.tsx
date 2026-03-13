@@ -61,6 +61,14 @@ export function EnvironmentsPage() {
     }
   }
 
+  async function handleClearCache(envId: string) {
+    try {
+      await api.environments.clearCache(envId);
+    } catch (err) {
+      console.error("Failed to clear cache:", err);
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -133,6 +141,13 @@ export function EnvironmentsPage() {
                 <div className="env-card-ttl-current">
                   Current: {formatTtl(env.cacheTtlSeconds)}
                 </div>
+                <button
+                  className="btn btn-ghost"
+                  style={{ marginTop: "0.5rem", width: "100%", fontSize: "0.75rem" }}
+                  onClick={() => handleClearCache(env.id.value)}
+                >
+                  Clear Cache
+                </button>
               </div>
             </div>
           ))}

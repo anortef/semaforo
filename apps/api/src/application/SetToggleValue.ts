@@ -2,17 +2,21 @@ import {
   createToggleValue,
   updateToggleValue,
   type ToggleValue,
+  type AppRepository,
   type FeatureToggleRepository,
   type EnvironmentRepository,
   type ToggleValueRepository,
 } from "@semaforo/domain";
 import { v4 as uuid } from "uuid";
+import type { ToggleCache } from "../infrastructure/cache/RedisToggleCache.js";
 
 export class SetToggleValue {
   constructor(
     private toggleRepository: FeatureToggleRepository,
     private environmentRepository: EnvironmentRepository,
-    private toggleValueRepository: ToggleValueRepository
+    private toggleValueRepository: ToggleValueRepository,
+    private appRepository: AppRepository,
+    private cache: ToggleCache
   ) {}
 
   async execute(params: {
@@ -42,20 +46,27 @@ export class SetToggleValue {
         params.environmentId
       );
 
+    let result: ToggleValue;
+
     if (existing) {
-      const updated = updateToggleValue(existing, params.enabled);
-      await this.toggleValueRepository.save(updated);
-      return updated;
+      result = updateToggleValue(existing, params.enabled);
+      await this.toggleValueRepository.save(result);
+    } else {
+      result = createToggleValue({
+        id: uuid(),
+        toggleId: params.toggleId,
+        environmentId: params.environmentId,
+        enabled: params.enabled,
+      });
+      await this.toggleValueRepository.save(result);
     }
 
-    const value = createToggleValue({
-      id: uuid(),
-      toggleId: params.toggleId,
-      environmentId: params.environmentId,
-      enabled: params.enabled,
-    });
+    // Invalidate cache for this app+environment
+    const app = await this.appRepository.findById(toggle.appId);
+    if (app) {
+      await this.cache.invalidate(app.key, environment.key);
+    }
 
-    await this.toggleValueRepository.save(value);
-    return value;
+    return result;
   }
 }

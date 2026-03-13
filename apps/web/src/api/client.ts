@@ -73,6 +73,10 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(data),
       }),
+    clearCache: (environmentId: string) =>
+      request<{ cleared: boolean }>(`/environments/${environmentId}/cache`, {
+        method: "DELETE",
+      }),
   },
   toggles: {
     list: (appId: string) =>
