@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: semaforo
+      POSTGRES_PASSWORD: semaforo
+      POSTGRES_DB: semaforo
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semaforo"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: "3001"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: semaforo
+      DB_PASSWORD: semaforo
+      DB_NAME: semaforo
+      CORS_ORIGIN: "http://localhost:5173"
+    volumes:
+      - ./packages/domain/src:/app/packages/domain/src
+      - ./apps/api/src:/app/apps/api/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "npm run db:migrate --workspace=@semaforo/api && npm run dev --workspace=@semaforo/api"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+      - ./apps/web/index.html:/app/apps/web/index.html
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
