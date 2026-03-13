@@ -1,29 +1,34 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { api, type AppDTO } from "../api/client.js";
+import { useParams } from "react-router-dom";
+import { api, type AppDTO, type EnvironmentDTO } from "../api/client.js";
 
-export function AppsPage() {
-  const [apps, setApps] = useState<AppDTO[]>([]);
+export function EnvironmentsPage() {
+  const { appId } = useParams<{ appId: string }>();
+  const [app, setApp] = useState<AppDTO | null>(null);
+  const [environments, setEnvironments] = useState<EnvironmentDTO[]>([]);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    api.apps.list().then(setApps).catch(console.error);
-  }, []);
+    if (!appId) return;
+    api.apps.get(appId).then(setApp).catch(console.error);
+    api.environments.list(appId).then(setEnvironments).catch(console.error);
+  }, [appId]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
+    if (!appId) return;
     setError("");
     try {
-      const app = await api.apps.create({ name, key });
-      setApps((prev) => [app, ...prev]);
+      const env = await api.environments.create(appId, { name, key });
+      setEnvironments((prev) => [...prev, env]);
       setName("");
       setKey("");
       setShowForm(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create app");
+      setError(err instanceof Error ? err.message : "Failed to create environment");
     }
   }
 
@@ -31,23 +36,25 @@ export function AppsPage() {
     <div className="page">
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <h1 className="page-title">Applications</h1>
-          <p className="page-subtitle">Manage your applications and their feature toggles</p>
+          <h1 className="page-title">Environments</h1>
+          <p className="page-subtitle">
+            {app ? `Deployment environments for ${app.name}` : "Loading..."}
+          </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
-          {showForm ? "Cancel" : "+ New App"}
+          {showForm ? "Cancel" : "+ New Environment"}
         </button>
       </div>
 
       {showForm && (
         <div className="card">
-          <div className="card-title">Create Application</div>
+          <div className="card-title">Create Environment</div>
           <form onSubmit={handleCreate}>
             <div className="form-row">
               <div className="form-field" style={{ flex: 1 }}>
                 <label>Name</label>
                 <input
-                  placeholder="My Application"
+                  placeholder="Production"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
@@ -56,7 +63,7 @@ export function AppsPage() {
               <div className="form-field" style={{ flex: 1 }}>
                 <label>Key</label>
                 <input
-                  placeholder="my-application"
+                  placeholder="prod"
                   value={key}
                   onChange={(e) => setKey(e.target.value)}
                   required
@@ -69,25 +76,18 @@ export function AppsPage() {
         </div>
       )}
 
-      {apps.length === 0 ? (
+      {environments.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state-icon">&#9881;</div>
-          <p>No applications yet. Create one to get started.</p>
+          <div className="empty-state-icon">&#9729;</div>
+          <p>No environments yet. Create one to get started.</p>
         </div>
       ) : (
-        <div className="app-grid">
-          {apps.map((app) => (
-            <Link
-              key={app.id.value}
-              to={`/apps/${app.id.value}/toggles`}
-              className="app-card"
-            >
-              <div className="app-card-name">{app.name}</div>
-              <div className="app-card-key">{app.key}</div>
-              {app.description && (
-                <div className="app-card-desc">{app.description}</div>
-              )}
-            </Link>
+        <div className="env-grid">
+          {environments.map((env) => (
+            <div key={env.id.value} className="env-card">
+              <div className="env-card-name">{env.name}</div>
+              <div className="env-card-key">{env.key}</div>
+            </div>
           ))}
         </div>
       )}

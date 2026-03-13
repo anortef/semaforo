@@ -49,6 +49,7 @@ export interface ToggleValueDTO {
 export const api = {
   apps: {
     list: () => request<AppDTO[]>("/apps"),
+    get: (appId: string) => request<AppDTO>(`/apps/${appId}`),
     create: (data: { name: string; key: string; description?: string }) =>
       request<AppDTO>("/apps", {
         method: "POST",
