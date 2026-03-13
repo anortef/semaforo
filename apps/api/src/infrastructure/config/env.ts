@@ -7,6 +7,10 @@ export interface Config {
     password: string;
     name: string;
   };
+  redis: {
+    host: string;
+    port: number;
+  };
   cors: {
     origin: string;
   };
@@ -21,6 +25,10 @@ export function loadConfig(): Config {
       user: process.env.DB_USER ?? "semaforo",
       password: process.env.DB_PASSWORD ?? "semaforo",
       name: process.env.DB_NAME ?? "semaforo",
+    },
+    redis: {
+      host: process.env.REDIS_HOST ?? "localhost",
+      port: parseInt(process.env.REDIS_PORT ?? "6379", 10),
     },
     cors: {
       origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",

@@ -19,6 +19,7 @@ export function TogglesPage() {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selectedEnvKey, setSelectedEnvKey] = useState("");
 
   const loadToggleStates = useCallback(async () => {
     if (!app) return;
@@ -47,6 +48,12 @@ export function TogglesPage() {
     api.environments.list(appId).then(setEnvironments).catch(console.error);
     api.toggles.list(appId).then(setToggles).catch(console.error);
   }, [appId]);
+
+  useEffect(() => {
+    if (environments.length > 0 && !selectedEnvKey) {
+      setSelectedEnvKey(environments[0].key);
+    }
+  }, [environments, selectedEnvKey]);
 
   useEffect(() => {
     if (app && environments.length > 0 && toggles.length > 0) {
@@ -92,6 +99,13 @@ export function TogglesPage() {
     }
   }
 
+  const apiBaseUrl = typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.host}`
+    : "";
+  const apiEndpoint = app
+    ? `/api/public/apps/${app.key}/environments/${selectedEnvKey}/toggles`
+    : "";
+
   return (
     <div className="page">
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -133,6 +147,56 @@ export function TogglesPage() {
             </div>
             {error && <p className="error-text">{error}</p>}
           </form>
+        </div>
+      )}
+
+      {app && environments.length > 0 && (
+        <div className="card api-info-card">
+          <div className="card-title">API Endpoint</div>
+          <p className="api-info-desc">
+            Use this endpoint to fetch toggle values for your application.
+          </p>
+
+          <div className="api-info-env-selector">
+            <label>Environment:</label>
+            <div className="api-env-tabs">
+              {environments.map((env) => (
+                <button
+                  key={env.id.value}
+                  className={`api-env-tab${selectedEnvKey === env.key ? " api-env-tab-active" : ""}`}
+                  onClick={() => setSelectedEnvKey(env.key)}
+                >
+                  {env.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="api-info-method">
+            <span className="api-method-badge">GET</span>
+            <code className="api-url">{apiBaseUrl}{apiEndpoint}</code>
+          </div>
+
+          <div className="api-info-curl">
+            <div className="api-info-curl-label">cURL</div>
+            <pre className="api-code-block">
+              <code>{`curl ${apiBaseUrl}${apiEndpoint}`}</code>
+            </pre>
+          </div>
+
+          <div className="api-info-curl">
+            <div className="api-info-curl-label">Response</div>
+            <pre className="api-code-block">
+              <code>{`{
+${toggles.map((t) => {
+  const env = environments.find((e) => e.key === selectedEnvKey);
+  const stateKey = env ? `${t.id.value}:${env.id.value}` : "";
+  const enabled = toggleStates.get(stateKey) ?? false;
+  return `  "${t.key}": ${enabled}`;
+}).join(",\n")}
+}`}</code>
+            </pre>
+          </div>
         </div>
       )}
 

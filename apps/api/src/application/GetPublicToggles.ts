@@ -4,19 +4,25 @@ import type {
   FeatureToggleRepository,
   ToggleValueRepository,
 } from "@semaforo/domain";
+import type { ToggleCache } from "../infrastructure/cache/RedisToggleCache.js";
 
 export class GetPublicToggles {
   constructor(
     private appRepository: AppRepository,
     private environmentRepository: EnvironmentRepository,
     private toggleRepository: FeatureToggleRepository,
-    private toggleValueRepository: ToggleValueRepository
+    private toggleValueRepository: ToggleValueRepository,
+    private cache: ToggleCache
   ) {}
 
   async execute(params: {
     appKey: string;
     envKey: string;
   }): Promise<Record<string, boolean>> {
+    // Try cache first
+    const cached = await this.cache.get(params.appKey, params.envKey);
+    if (cached) return cached;
+
     const app = await this.appRepository.findByKey(params.appKey);
     if (!app) {
       throw new Error("App not found");
@@ -41,6 +47,14 @@ export class GetPublicToggles {
     for (const toggle of toggles) {
       result[toggle.key] = valueMap.get(toggle.id.value) ?? false;
     }
+
+    // Cache the result
+    await this.cache.set(
+      params.appKey,
+      params.envKey,
+      result,
+      environment.cacheTtlSeconds
+    );
 
     return result;
   }

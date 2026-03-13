@@ -27,7 +27,7 @@ describe("Environment Routes (integration)", () => {
   });
 
   describe("POST /api/apps/:appId/environments", () => {
-    it("creates an environment and returns 201", async () => {
+    it("creates an environment and returns 201 with default TTL", async () => {
       const res = await request(app)
         .post(`/api/apps/${appId}/environments`)
         .send({ name: "Production", key: "prod" });
@@ -37,6 +37,7 @@ describe("Environment Routes (integration)", () => {
       expect(res.body.key).toBe("prod");
       expect(res.body.appId).toBe(appId);
       expect(res.body.id.value).toBeDefined();
+      expect(res.body.cacheTtlSeconds).toBe(300);
     });
 
     it("rejects duplicate key within same app", async () => {
@@ -75,6 +76,56 @@ describe("Environment Routes (integration)", () => {
 
       expect(res.status).toBe(404);
       expect(res.body.error).toContain("not found");
+    });
+  });
+
+  describe("PATCH /api/environments/:environmentId", () => {
+    it("updates cache TTL", async () => {
+      const created = await request(app)
+        .post(`/api/apps/${appId}/environments`)
+        .send({ name: "Prod", key: "prod" });
+
+      const res = await request(app)
+        .patch(`/api/environments/${created.body.id.value}`)
+        .send({ cacheTtlSeconds: 60 });
+
+      expect(res.status).toBe(200);
+      expect(res.body.cacheTtlSeconds).toBe(60);
+      expect(res.body.name).toBe("Prod");
+    });
+
+    it("updates name only", async () => {
+      const created = await request(app)
+        .post(`/api/apps/${appId}/environments`)
+        .send({ name: "Prod", key: "prod" });
+
+      const res = await request(app)
+        .patch(`/api/environments/${created.body.id.value}`)
+        .send({ name: "Production" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe("Production");
+      expect(res.body.cacheTtlSeconds).toBe(300);
+    });
+
+    it("rejects invalid TTL", async () => {
+      const created = await request(app)
+        .post(`/api/apps/${appId}/environments`)
+        .send({ name: "Prod", key: "prod" });
+
+      const res = await request(app)
+        .patch(`/api/environments/${created.body.id.value}`)
+        .send({ cacheTtlSeconds: -1 });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 for non-existent environment", async () => {
+      const res = await request(app)
+        .patch("/api/environments/non-existent")
+        .send({ cacheTtlSeconds: 60 });
+
+      expect(res.status).toBe(404);
     });
   });
 

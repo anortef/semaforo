@@ -2,6 +2,22 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, type AppDTO, type EnvironmentDTO } from "../api/client.js";
 
+const TTL_PRESETS = [
+  { label: "No cache", value: 0 },
+  { label: "30s", value: 30 },
+  { label: "1 min", value: 60 },
+  { label: "5 min", value: 300 },
+  { label: "15 min", value: 900 },
+  { label: "1 hour", value: 3600 },
+];
+
+function formatTtl(seconds: number): string {
+  if (seconds === 0) return "No cache";
+  if (seconds < 60) return `${seconds}s`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
 export function EnvironmentsPage() {
   const { appId } = useParams<{ appId: string }>();
   const [app, setApp] = useState<AppDTO | null>(null);
@@ -29,6 +45,19 @@ export function EnvironmentsPage() {
       setShowForm(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create environment");
+    }
+  }
+
+  async function handleTtlChange(envId: string, ttl: number) {
+    try {
+      const updated = await api.environments.update(envId, {
+        cacheTtlSeconds: ttl,
+      });
+      setEnvironments((prev) =>
+        prev.map((e) => (e.id.value === envId ? updated : e))
+      );
+    } catch (err) {
+      console.error("Failed to update TTL:", err);
     }
   }
 
@@ -87,6 +116,24 @@ export function EnvironmentsPage() {
             <div key={env.id.value} className="env-card">
               <div className="env-card-name">{env.name}</div>
               <div className="env-card-key">{env.key}</div>
+
+              <div className="env-card-ttl">
+                <label className="env-card-ttl-label">Cache TTL</label>
+                <div className="ttl-presets">
+                  {TTL_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      className={`ttl-btn${env.cacheTtlSeconds === preset.value ? " ttl-btn-active" : ""}`}
+                      onClick={() => handleTtlChange(env.id.value, preset.value)}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="env-card-ttl-current">
+                  Current: {formatTtl(env.cacheTtlSeconds)}
+                </div>
+              </div>
             </div>
           ))}
         </div>

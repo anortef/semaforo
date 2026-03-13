@@ -29,6 +29,7 @@ export interface EnvironmentDTO {
   appId: string;
   name: string;
   key: string;
+  cacheTtlSeconds: number;
 }
 
 export interface FeatureToggleDTO {
@@ -62,6 +63,14 @@ export const api = {
     create: (appId: string, data: { name: string; key: string }) =>
       request<EnvironmentDTO>(`/apps/${appId}/environments`, {
         method: "POST",
+        body: JSON.stringify(data),
+      }),
+    update: (
+      environmentId: string,
+      data: { name?: string; cacheTtlSeconds?: number }
+    ) =>
+      request<EnvironmentDTO>(`/environments/${environmentId}`, {
+        method: "PATCH",
         body: JSON.stringify(data),
       }),
   },

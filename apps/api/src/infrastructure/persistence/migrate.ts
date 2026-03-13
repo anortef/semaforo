@@ -41,6 +41,7 @@ const MIGRATIONS = [
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(toggle_id, environment_id)
   )`,
+  `ALTER TABLE environments ADD COLUMN IF NOT EXISTS cache_ttl_seconds INTEGER NOT NULL DEFAULT 300`,
 ];
 
 async function migrate() {

@@ -4,7 +4,7 @@ export type { User, UserId } from "./entities/User.js";
 export { createApp } from "./entities/App.js";
 export type { App, AppId } from "./entities/App.js";
 
-export { createEnvironment } from "./entities/Environment.js";
+export { createEnvironment, updateEnvironment } from "./entities/Environment.js";
 export type { Environment, EnvironmentId } from "./entities/Environment.js";
 
 export { createFeatureToggle } from "./entities/FeatureToggle.js";

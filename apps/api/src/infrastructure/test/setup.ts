@@ -1,6 +1,7 @@
 import pg from "pg";
 import { loadConfig } from "../config/env.js";
 import { createExpressApp } from "../http/app.js";
+import { NoOpToggleCache } from "../cache/RedisToggleCache.js";
 
 const config = loadConfig();
 
@@ -15,7 +16,7 @@ export function createTestPool(): pg.Pool {
 }
 
 export function createTestApp(pool: pg.Pool) {
-  return createExpressApp(pool, config);
+  return createExpressApp(pool, config, new NoOpToggleCache());
 }
 
 export async function cleanDatabase(pool: pg.Pool) {

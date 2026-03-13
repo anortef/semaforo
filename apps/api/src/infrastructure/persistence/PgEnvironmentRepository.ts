@@ -33,14 +33,15 @@ export class PgEnvironmentRepository implements EnvironmentRepository {
 
   async save(environment: Environment): Promise<void> {
     await this.pool.query(
-      `INSERT INTO environments (id, app_id, name, key, created_at)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (id) DO UPDATE SET name = $3`,
+      `INSERT INTO environments (id, app_id, name, key, cache_ttl_seconds, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (id) DO UPDATE SET name = $3, cache_ttl_seconds = $5`,
       [
         environment.id.value,
         environment.appId,
         environment.name,
         environment.key,
+        environment.cacheTtlSeconds,
         environment.createdAt,
       ]
     );
@@ -56,6 +57,7 @@ export class PgEnvironmentRepository implements EnvironmentRepository {
       appId: row.app_id as string,
       name: row.name as string,
       key: row.key as string,
+      cacheTtlSeconds: (row.cache_ttl_seconds as number) ?? 300,
       createdAt: new Date(row.created_at as string),
     };
   }

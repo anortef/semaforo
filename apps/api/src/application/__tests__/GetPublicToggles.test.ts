@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GetPublicToggles } from "../GetPublicToggles.js";
+import { NoOpToggleCache } from "../../infrastructure/cache/RedisToggleCache.js";
 import type {
   App,
   AppRepository,
@@ -94,7 +95,7 @@ describe("GetPublicToggles", () => {
     envRepo = new InMemoryEnvironmentRepository();
     toggleRepo = new InMemoryToggleRepository();
     valueRepo = new InMemoryToggleValueRepository();
-    useCase = new GetPublicToggles(appRepo, envRepo, toggleRepo, valueRepo);
+    useCase = new GetPublicToggles(appRepo, envRepo, toggleRepo, valueRepo, new NoOpToggleCache());
   });
 
   it("returns toggle map for an app environment", async () => {
@@ -110,6 +111,7 @@ describe("GetPublicToggles", () => {
       appId: "app-1",
       name: "Prod",
       key: "prod",
+      cacheTtlSeconds: 300,
       createdAt: new Date(),
     });
     toggleRepo.toggles.push(
