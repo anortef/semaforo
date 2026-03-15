@@ -13,6 +13,15 @@ This starts:
 - **Web UI** at http://localhost:5173
 - **PostgreSQL** at localhost:5432
 
+## API Documentation (Swagger)
+
+Interactive API docs are available via Swagger UI:
+
+- **Swagger UI:** http://localhost:3001/api/docs
+- **OpenAPI JSON:** http://localhost:3001/api/docs.json
+
+The docs are auto-generated from JSDoc `@openapi` annotations in the route files.
+
 ## Public API
 
 Client applications consume toggles via:
