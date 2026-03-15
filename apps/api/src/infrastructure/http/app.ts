@@ -1,8 +1,10 @@
 import express from "express";
 import cors from "cors";
+import swaggerUi from "swagger-ui-express";
 import type pg from "pg";
 import type { Config } from "../config/env.js";
 import type { ToggleCache } from "../cache/RedisToggleCache.js";
+import { swaggerSpec } from "./swagger.js";
 import { PgAppRepository } from "../persistence/PgAppRepository.js";
 import { PgEnvironmentRepository } from "../persistence/PgEnvironmentRepository.js";
 import { PgFeatureToggleRepository } from "../persistence/PgFeatureToggleRepository.js";
@@ -65,6 +67,10 @@ export function createExpressApp(
     cache
   );
 
+  // Swagger
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
+
   // Routes
   app.use("/api/public", publicRoutes(getPublicToggles));
   app.use("/api/apps", appRoutes(createAppUseCase, listApps, getApp));
@@ -74,7 +80,24 @@ export function createExpressApp(
   );
   app.use("/api", toggleRoutes(createToggle, setToggleValue, listToggles));
 
-  // Health check
+  /**
+   * @openapi
+   * /health:
+   *   get:
+   *     tags: [Health]
+   *     summary: Health check
+   *     responses:
+   *       200:
+   *         description: API is healthy
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                   example: ok
+   */
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
   });

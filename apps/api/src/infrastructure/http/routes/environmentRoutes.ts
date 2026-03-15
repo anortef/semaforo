@@ -15,6 +15,29 @@ export function environmentRoutes(
 ): Router {
   const router = Router();
 
+  /**
+   * @openapi
+   * /apps/{appId}/environments:
+   *   get:
+   *     tags: [Environments]
+   *     summary: List environments for an app
+   *     parameters:
+   *       - in: path
+   *         name: appId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     responses:
+   *       200:
+   *         description: List of environments
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/Environment'
+   */
   router.get("/apps/:appId/environments", async (req, res) => {
     try {
       const environments = await listEnvironments.execute(req.params.appId);
@@ -24,6 +47,56 @@ export function environmentRoutes(
     }
   });
 
+  /**
+   * @openapi
+   * /apps/{appId}/environments:
+   *   post:
+   *     tags: [Environments]
+   *     summary: Create a new environment
+   *     parameters:
+   *       - in: path
+   *         name: appId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [name, key]
+   *             properties:
+   *               name:
+   *                 type: string
+   *                 example: Production
+   *               key:
+   *                 type: string
+   *                 example: production
+   *               cacheTtlSeconds:
+   *                 type: number
+   *                 example: 300
+   *     responses:
+   *       201:
+   *         description: Environment created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Environment'
+   *       400:
+   *         description: Validation error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       404:
+   *         description: App not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
   router.post("/apps/:appId/environments", async (req, res) => {
     try {
       const environment = await createEnvironment.execute({
@@ -42,6 +115,44 @@ export function environmentRoutes(
     }
   });
 
+  /**
+   * @openapi
+   * /environments/{environmentId}:
+   *   patch:
+   *     tags: [Environments]
+   *     summary: Update an environment
+   *     parameters:
+   *       - in: path
+   *         name: environmentId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               name:
+   *                 type: string
+   *               cacheTtlSeconds:
+   *                 type: number
+   *     responses:
+   *       200:
+   *         description: Environment updated
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Environment'
+   *       404:
+   *         description: Environment not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
   router.patch("/environments/:environmentId", async (req, res) => {
     try {
       const environment = await updateEnvironment.execute({
@@ -60,6 +171,37 @@ export function environmentRoutes(
     }
   });
 
+  /**
+   * @openapi
+   * /environments/{environmentId}/cache:
+   *   delete:
+   *     tags: [Environments]
+   *     summary: Clear cache for an environment
+   *     parameters:
+   *       - in: path
+   *         name: environmentId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     responses:
+   *       200:
+   *         description: Cache cleared
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 cleared:
+   *                   type: boolean
+   *                   example: true
+   *       404:
+   *         description: Environment or app not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
   router.delete("/environments/:environmentId/cache", async (req, res) => {
     try {
       const env = await environmentRepository.findById(req.params.environmentId);

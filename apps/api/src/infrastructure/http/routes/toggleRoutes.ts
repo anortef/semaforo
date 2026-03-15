@@ -10,6 +10,29 @@ export function toggleRoutes(
 ): Router {
   const router = Router();
 
+  /**
+   * @openapi
+   * /apps/{appId}/toggles:
+   *   get:
+   *     tags: [Toggles]
+   *     summary: List toggles for an app
+   *     parameters:
+   *       - in: path
+   *         name: appId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     responses:
+   *       200:
+   *         description: List of feature toggles
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: array
+   *               items:
+   *                 $ref: '#/components/schemas/FeatureToggle'
+   */
   router.get("/apps/:appId/toggles", async (req, res) => {
     try {
       const toggles = await listToggles.execute(req.params.appId);
@@ -19,6 +42,57 @@ export function toggleRoutes(
     }
   });
 
+  /**
+   * @openapi
+   * /apps/{appId}/toggles:
+   *   post:
+   *     tags: [Toggles]
+   *     summary: Create a new feature toggle
+   *     parameters:
+   *       - in: path
+   *         name: appId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [name, key]
+   *             properties:
+   *               name:
+   *                 type: string
+   *                 example: New Checkout
+   *               key:
+   *                 type: string
+   *                 example: newCheckout
+   *                 description: camelCase, unique per app
+   *               description:
+   *                 type: string
+   *                 example: Enables the new checkout flow
+   *     responses:
+   *       201:
+   *         description: Toggle created
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/FeatureToggle'
+   *       400:
+   *         description: Validation error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   *       404:
+   *         description: App not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
   router.post("/apps/:appId/toggles", async (req, res) => {
     try {
       const toggle = await createToggle.execute({
@@ -37,6 +111,50 @@ export function toggleRoutes(
     }
   });
 
+  /**
+   * @openapi
+   * /toggles/{toggleId}/environments/{environmentId}:
+   *   put:
+   *     tags: [Toggles]
+   *     summary: Set toggle value for an environment
+   *     parameters:
+   *       - in: path
+   *         name: toggleId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *       - in: path
+   *         name: environmentId
+   *         required: true
+   *         schema:
+   *           type: string
+   *           format: uuid
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [enabled]
+   *             properties:
+   *               enabled:
+   *                 type: boolean
+   *                 example: true
+   *     responses:
+   *       200:
+   *         description: Toggle value set
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/ToggleValue'
+   *       404:
+   *         description: Toggle or environment not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               $ref: '#/components/schemas/Error'
+   */
   router.put("/toggles/:toggleId/environments/:environmentId", async (req, res) => {
     try {
       const value = await setToggleValue.execute({
