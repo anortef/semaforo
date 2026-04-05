@@ -11,7 +11,7 @@ export function createLoginLimiter(maxAttempts = 10, windowMs = 15 * 60 * 1000) 
 }
 
 // Generous limit for all public requests (cache hits are cheap)
-export function createPublicLimiter(maxRequests = 10_000, windowMs = 60 * 1000) {
+export function createPublicLimiter(maxRequests = 100_000, windowMs = 60 * 1000) {
   return rateLimit({
     windowMs,
     max: maxRequests,
