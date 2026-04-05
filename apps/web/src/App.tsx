@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import { AppsProvider } from "./context/AppsContext.js";
+import { ThemeProvider } from "./context/ThemeContext.js";
 import { Layout } from "./components/Layout.js";
 import { AdminGuard } from "./components/AdminGuard.js";
 import { AppsPage } from "./pages/AppsPage.js";
@@ -66,10 +67,12 @@ function AppRoutes() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <AppsProvider>
-        <AppRoutes />
-      </AppsProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppsProvider>
+          <AppRoutes />
+        </AppsProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

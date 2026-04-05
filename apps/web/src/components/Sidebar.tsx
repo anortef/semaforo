@@ -1,11 +1,13 @@
 import { Link, NavLink, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.js";
 import { useApps } from "../context/AppsContext.js";
+import { useTheme, THEMES } from "../context/ThemeContext.js";
 
 export function Sidebar() {
   const { apps } = useApps();
   const { appId } = useParams<{ appId: string }>();
   const { user, logout } = useAuth();
+  const { theme, setThemeId } = useTheme();
 
   return (
     <aside className="sidebar">
@@ -123,6 +125,18 @@ export function Sidebar() {
       )}
 
       <div className="sidebar-footer">
+        <div className="theme-switcher">
+          {THEMES.map((t) => (
+            <button
+              key={t.id}
+              className={`theme-btn${theme.id === t.id ? " theme-btn-active" : ""}`}
+              onClick={() => setThemeId(t.id)}
+              title={t.name}
+            >
+              <span className="theme-dot" style={{ background: t.vars["--color-accent"] }} />
+            </button>
+          ))}
+        </div>
         {user && (
           <div className="sidebar-user">
             <span className="sidebar-user-email">{user.email}</span>

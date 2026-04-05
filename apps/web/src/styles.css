@@ -687,6 +687,44 @@ tr:hover td {
   width: 100%;
 }
 
+/* Theme switcher */
+.theme-switcher {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 0.75rem;
+  justify-content: center;
+}
+
+.theme-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  padding: 0;
+}
+
+.theme-btn:hover {
+  border-color: var(--color-text-muted);
+  transform: scale(1.1);
+}
+
+.theme-btn-active {
+  border-color: var(--color-accent);
+  transform: scale(1.15);
+}
+
+.theme-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+
 /* Sidebar footer */
 .sidebar-footer {
   margin-top: auto;
