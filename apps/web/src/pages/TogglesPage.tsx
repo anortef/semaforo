@@ -239,7 +239,10 @@ ${toggles.map((t) => {
         <div className="card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: apiKeys.length > 0 || showKeyForm ? "1rem" : 0 }}>
             <div className="card-title" style={{ marginBottom: 0 }}>API Keys</div>
-            <button className="btn btn-ghost" onClick={() => setShowKeyForm(!showKeyForm)}>
+            <button className="btn btn-ghost" onClick={() => {
+              if (!showKeyForm) setNewKeyName(crypto.randomUUID());
+              setShowKeyForm(!showKeyForm);
+            }}>
               {showKeyForm ? "Cancel" : "+ New Key"}
             </button>
           </div>
