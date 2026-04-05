@@ -13,7 +13,7 @@ export class Login {
     password: string;
   }): Promise<{ token: string }> {
     const user = await this.userRepository.findByEmail(params.email);
-    if (!user) {
+    if (!user || user.disabled) {
       throw new Error("Invalid credentials");
     }
 

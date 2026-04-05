@@ -20,13 +20,25 @@ export class PgUserRepository implements UserRepository {
     return result.rows[0] ? toDomain(result.rows[0]) : null;
   }
 
+  async findAll(params: { limit: number; offset: number }): Promise<User[]> {
+    const result = await this.pool.query(
+      "SELECT * FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+      [params.limit, params.offset]
+    );
+    return result.rows.map(toDomain);
+  }
+
   async save(user: User): Promise<void> {
     await this.pool.query(
-      `INSERT INTO users (id, email, name, password_hash, role, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO UPDATE SET email = $2, name = $3, password_hash = $4, role = $5`,
-      [user.id.value, user.email, user.name, user.passwordHash, user.role, user.createdAt]
+      `INSERT INTO users (id, email, name, password_hash, role, disabled, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (id) DO UPDATE SET email = $2, name = $3, password_hash = $4, role = $5, disabled = $6, updated_at = $8`,
+      [user.id.value, user.email, user.name, user.passwordHash, user.role, user.disabled, user.createdAt, user.updatedAt]
     );
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.pool.query("DELETE FROM users WHERE id = $1", [id]);
   }
 
   async countAll(): Promise<number> {
@@ -42,6 +54,8 @@ function toDomain(row: Record<string, unknown>): User {
     name: row.name as string,
     passwordHash: row.password_hash as string,
     role: (row.role as UserRole) ?? "user",
+    disabled: (row.disabled as boolean) ?? false,
     createdAt: new Date(row.created_at as string),
+    updatedAt: new Date((row.updated_at as string) ?? row.created_at as string),
   };
 }

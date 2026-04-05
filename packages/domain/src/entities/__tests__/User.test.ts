@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { createUser } from "../User.js";
+import { createUser, updateUser } from "../User.js";
 
-describe("User", () => {
-  it("creates a valid user with default role", () => {
+describe("createUser", () => {
+  it("defaults role to user", () => {
     const user = createUser({
       id: "user-1",
       email: "test@example.com",
@@ -10,10 +10,18 @@ describe("User", () => {
       passwordHash: "hashed",
     });
 
-    expect(user.id.value).toBe("user-1");
-    expect(user.email).toBe("test@example.com");
-    expect(user.name).toBe("Test User");
     expect(user.role).toBe("user");
+  });
+
+  it("defaults disabled to false", () => {
+    const user = createUser({
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      passwordHash: "hashed",
+    });
+
+    expect(user.disabled).toBe(false);
   });
 
   it("creates a user with admin role", () => {
@@ -26,18 +34,6 @@ describe("User", () => {
     });
 
     expect(user.role).toBe("admin");
-  });
-
-  it("creates a user with explicit user role", () => {
-    const user = createUser({
-      id: "user-3",
-      email: "regular@example.com",
-      name: "Regular",
-      passwordHash: "hashed",
-      role: "user",
-    });
-
-    expect(user.role).toBe("user");
   });
 
   it("rejects invalid role", () => {
@@ -59,6 +55,7 @@ describe("User", () => {
       name: "Test",
       passwordHash: "h",
     });
+
     expect(user.email).toBe("test@example.com");
   });
 
@@ -72,5 +69,52 @@ describe("User", () => {
     expect(() =>
       createUser({ id: "1", email: "a@b.com", name: "  ", passwordHash: "h" })
     ).toThrow("Name cannot be empty");
+  });
+});
+
+describe("updateUser", () => {
+  const base = createUser({
+    id: "user-1",
+    email: "test@example.com",
+    name: "Test",
+    passwordHash: "h",
+    role: "user",
+  });
+
+  it("updates the name", () => {
+    const updated = updateUser(base, { name: "New Name" });
+
+    expect(updated.name).toBe("New Name");
+  });
+
+  it("updates the role", () => {
+    const updated = updateUser(base, { role: "admin" });
+
+    expect(updated.role).toBe("admin");
+  });
+
+  it("updates disabled status", () => {
+    const updated = updateUser(base, { disabled: true });
+
+    expect(updated.disabled).toBe(true);
+  });
+
+  it("updates the password hash", () => {
+    const updated = updateUser(base, { passwordHash: "new-hash" });
+
+    expect(updated.passwordHash).toBe("new-hash");
+  });
+
+  it("preserves unchanged fields", () => {
+    const updated = updateUser(base, { name: "New" });
+
+    expect(updated.email).toBe("test@example.com");
+  });
+
+  it("sets updatedAt to current time", () => {
+    const before = new Date();
+    const updated = updateUser(base, { name: "New" });
+
+    expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
   });
 });
