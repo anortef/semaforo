@@ -203,6 +203,14 @@ export function EnvironmentsPage() {
                       <code className="badge badge-key" style={{ fontSize: "0.625rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>{k.key}</code>
                       <button
                         className="btn btn-ghost"
+                        style={{ fontSize: "0.625rem", padding: "0.125rem 0.375rem", flexShrink: 0 }}
+                        onClick={() => navigator.clipboard.writeText(k.key)}
+                        title="Copy to clipboard"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        className="btn btn-ghost"
                         style={{ color: "var(--color-red)", fontSize: "0.625rem", padding: "0.125rem 0.375rem", flexShrink: 0 }}
                         onClick={() => handleDeleteKey(env.id.value, k.id.value)}
                       >
