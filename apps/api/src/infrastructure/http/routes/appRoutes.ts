@@ -2,11 +2,13 @@ import { Router } from "express";
 import type { CreateApp } from "../../../application/CreateApp.js";
 import type { ListApps } from "../../../application/ListApps.js";
 import type { GetApp } from "../../../application/GetApp.js";
+import type { GetAppMetrics } from "../../../application/GetAppMetrics.js";
 
 export function appRoutes(
   createApp: CreateApp,
   listApps: ListApps,
-  getApp: GetApp
+  getApp: GetApp,
+  getAppMetrics?: GetAppMetrics
 ): Router {
   const router = Router();
 
@@ -129,6 +131,23 @@ export function appRoutes(
       res.status(400).json({ error: message });
     }
   });
+
+  if (getAppMetrics) {
+    router.get("/:appId/metrics", async (req, res) => {
+      try {
+        const metrics = await getAppMetrics.execute(req.params.appId);
+        res.json(metrics);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Internal server error";
+        if (message.includes("not found")) {
+          res.status(404).json({ error: message });
+        } else {
+          res.status(500).json({ error: "Internal server error" });
+        }
+      }
+    });
+  }
 
   return router;
 }

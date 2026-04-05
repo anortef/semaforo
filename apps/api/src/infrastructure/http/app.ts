@@ -15,6 +15,7 @@ import { PgApiKeyRepository } from "../persistence/PgApiKeyRepository.js";
 import { CreateApp } from "../../application/CreateApp.js";
 import { ListApps } from "../../application/ListApps.js";
 import { GetApp } from "../../application/GetApp.js";
+import { GetAppMetrics } from "../../application/GetAppMetrics.js";
 import { CreateEnvironment } from "../../application/CreateEnvironment.js";
 import { ListEnvironments } from "../../application/ListEnvironments.js";
 import { UpdateEnvironment } from "../../application/UpdateEnvironment.js";
@@ -81,6 +82,7 @@ export function createExpressApp(
   const createAppUseCase = new CreateApp(appRepository);
   const listApps = new ListApps(appRepository);
   const getApp = new GetApp(appRepository);
+  const getAppMetrics = new GetAppMetrics(appRepository, environmentRepository, toggleRepository, cache);
   const createEnvironment = new CreateEnvironment(
     appRepository,
     environmentRepository,
@@ -178,7 +180,7 @@ export function createExpressApp(
   }));
 
   // Protected routes (require JWT auth)
-  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
+  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics));
   app.use("/api/apps", auth, appMemberRoutes(addAppMember, removeAppMember, listAppMembersUseCase, userRepository));
   app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));

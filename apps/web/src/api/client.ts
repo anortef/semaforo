@@ -114,6 +114,19 @@ export interface AuditLogEntryDTO {
   createdAt: string;
 }
 
+export interface EnvironmentMetricsDTO {
+  id: string;
+  name: string;
+  key: string;
+  cacheTtlSeconds: number;
+  cache: { sizeBytes: number; remainingTtl: number } | null;
+}
+
+export interface AppMetricsDTO {
+  toggleCount: number;
+  environments: EnvironmentMetricsDTO[];
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -140,6 +153,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    metrics: (appId: string) =>
+      request<AppMetricsDTO>(`/apps/${appId}/metrics`),
   },
   environments: {
     list: (appId: string) =>

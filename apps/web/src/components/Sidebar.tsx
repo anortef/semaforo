@@ -80,6 +80,15 @@ export function Sidebar() {
                         <span className="sidebar-link-icon">&#9787;</span>
                         Settings
                       </NavLink>
+                      <NavLink
+                        to={`/apps/${app.id.value}/metrics`}
+                        className={({ isActive }) =>
+                          `sidebar-link${isActive ? " active" : ""}`
+                        }
+                      >
+                        <span className="sidebar-link-icon">&#9776;</span>
+                        Metrics
+                      </NavLink>
                     </div>
                   )}
                 </div>

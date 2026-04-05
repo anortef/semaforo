@@ -81,4 +81,5 @@ export class SpyToggleCache implements ToggleCache {
   async invalidate(appKey: string, envKey: string) { this.invalidated.push(`${appKey}:${envKey}`); }
   async getByApiKey() { return null; }
   async setByApiKey() {}
+  async getCacheInfo() { return null; }
 }

@@ -1,5 +1,10 @@
 import Redis from "ioredis";
 
+export interface CacheInfo {
+  sizeBytes: number;
+  remainingTtl: number;
+}
+
 export interface ToggleCache {
   get(appKey: string, envKey: string): Promise<Record<string, boolean> | null>;
   set(
@@ -15,6 +20,7 @@ export interface ToggleCache {
     toggles: Record<string, boolean>,
     ttlSeconds: number
   ): Promise<void>;
+  getCacheInfo(appKey: string, envKey: string): Promise<CacheInfo | null>;
 }
 
 export class RedisToggleCache implements ToggleCache {
@@ -71,6 +77,14 @@ export class RedisToggleCache implements ToggleCache {
       ttlSeconds
     );
   }
+
+  async getCacheInfo(appKey: string, envKey: string): Promise<CacheInfo | null> {
+    const key = this.cacheKey(appKey, envKey);
+    const data = await this.redis.get(key);
+    if (!data) return null;
+    const ttl = await this.redis.ttl(key);
+    return { sizeBytes: Buffer.byteLength(data), remainingTtl: Math.max(ttl, 0) };
+  }
 }
 
 export class NoOpToggleCache implements ToggleCache {
@@ -83,4 +97,7 @@ export class NoOpToggleCache implements ToggleCache {
     return null;
   }
   async setByApiKey(): Promise<void> {}
+  async getCacheInfo(): Promise<null> {
+    return null;
+  }
 }
