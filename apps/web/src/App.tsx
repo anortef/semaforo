@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.js";
+import { AppsProvider } from "./context/AppsContext.js";
 import { Layout } from "./components/Layout.js";
 import { AppsPage } from "./pages/AppsPage.js";
 import { TogglesPage } from "./pages/TogglesPage.js";
@@ -50,7 +51,9 @@ function AppRoutes() {
 export function App() {
   return (
     <AuthProvider>
-      <AppRoutes />
+      <AppsProvider>
+        <AppRoutes />
+      </AppsProvider>
     </AuthProvider>
   );
 }

@@ -1,16 +1,11 @@
-import { useEffect, useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
-import { api, type AppDTO } from "../api/client.js";
 import { useAuth } from "../context/AuthContext.js";
+import { useApps } from "../context/AppsContext.js";
 
 export function Sidebar() {
-  const [apps, setApps] = useState<AppDTO[]>([]);
+  const { apps } = useApps();
   const { appId } = useParams<{ appId: string }>();
   const { user, logout } = useAuth();
-
-  useEffect(() => {
-    api.apps.list().then(setApps).catch(console.error);
-  }, []);
 
   return (
     <aside className="sidebar">

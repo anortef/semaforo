@@ -1,24 +1,21 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { api, type AppDTO } from "../api/client.js";
+import { api } from "../api/client.js";
+import { useApps } from "../context/AppsContext.js";
 
 export function AppsPage() {
-  const [apps, setApps] = useState<AppDTO[]>([]);
+  const { apps, refresh } = useApps();
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  useEffect(() => {
-    api.apps.list().then(setApps).catch(console.error);
-  }, []);
-
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     try {
-      const app = await api.apps.create({ name, key });
-      setApps((prev) => [app, ...prev]);
+      await api.apps.create({ name, key });
+      await refresh();
       setName("");
       setKey("");
       setShowForm(false);
