@@ -21,17 +21,27 @@ export function publicRoutes(
   const dbLimiter = createCacheMissLimiter();
 
   if (environmentRepository && appRepository) {
-    router.get("/toggles", async (req, res) => {
+    const handleToggles = async (req: import("express").Request, res: import("express").Response) => {
       try {
         const apiKeyValue = extractApiKey(req);
         const environmentId = res.locals.apiKeyEnvironmentId as string;
+        const toggleKey = req.params.toggleKey as string | undefined;
 
         requestCounter?.increment(environmentId);
 
-        if (cache) {
+        if (cache && !toggleKey) {
           const cached = await cache.getByApiKey(apiKeyValue);
           if (cached) {
             res.json(cached);
+            return;
+          }
+        }
+
+        if (cache && toggleKey) {
+          const cached = await cache.getByApiKey(apiKeyValue);
+          if (cached) {
+            const value = toggleKey in cached ? cached[toggleKey] : false;
+            res.json({ [toggleKey]: value });
             return;
           }
         }
@@ -54,9 +64,10 @@ export function publicRoutes(
             const toggles = await getPublicToggles.execute({
               appKey: app.key,
               envKey: env.key,
+              toggleKey,
             });
 
-            if (cache) {
+            if (cache && !toggleKey) {
               await cache.setByApiKey(apiKeyValue, toggles, env.cacheTtlSeconds);
             }
 
@@ -68,24 +79,24 @@ export function publicRoutes(
       } catch {
         res.status(500).json({ error: "Internal server error" });
       }
-    });
+    };
+
+    router.get("/toggles", handleToggles);
+    router.get("/toggles/:toggleKey", handleToggles);
   }
 
-  router.get(
-    "/apps/:appKey/environments/:envKey/toggles",
-    (req, res, next) => {
+  const handleFullPath = [
+    (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
       const environmentId = res.locals.apiKeyEnvironmentId as string;
       if (environmentId) requestCounter?.increment(environmentId);
-
-      // This endpoint always hits GetPublicToggles (which has its own cache),
-      // so apply the DB-protection limiter
       dbLimiter(req, res, next);
     },
-    async (req, res) => {
+    async (req: import("express").Request, res: import("express").Response) => {
       try {
         const toggles = await getPublicToggles.execute({
           appKey: req.params.appKey,
           envKey: req.params.envKey,
+          toggleKey: req.params.toggleKey,
         });
         res.json(toggles);
       } catch (error) {
@@ -97,7 +108,11 @@ export function publicRoutes(
           res.status(500).json({ error: "Internal server error" });
         }
       }
-    }
+    },
+  ] as import("express").RequestHandler[];
+
+  router.get("/apps/:appKey/environments/:envKey/toggles", ...handleFullPath);
+  router.get("/apps/:appKey/environments/:envKey/toggles/:toggleKey", ...handleFullPath
   );
 
   return router;

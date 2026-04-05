@@ -18,10 +18,13 @@ export class GetPublicToggles {
   async execute(params: {
     appKey: string;
     envKey: string;
+    toggleKey?: string;
   }): Promise<Record<string, boolean>> {
-    // Try cache first
-    const cached = await this.cache.get(params.appKey, params.envKey);
-    if (cached) return cached;
+    // Try cache first (only for full map, not filtered)
+    if (!params.toggleKey) {
+      const cached = await this.cache.get(params.appKey, params.envKey);
+      if (cached) return cached;
+    }
 
     const app = await this.appRepository.findByKey(params.appKey);
     if (!app) {
@@ -43,12 +46,18 @@ export class GetPublicToggles {
 
     const valueMap = new Map(values.map((v) => [v.toggleId, v.enabled]));
 
+    if (params.toggleKey) {
+      const toggle = toggles.find((t) => t.key === params.toggleKey);
+      const enabled = toggle ? (valueMap.get(toggle.id.value) ?? false) : false;
+      return { [params.toggleKey]: enabled };
+    }
+
     const result: Record<string, boolean> = {};
     for (const toggle of toggles) {
       result[toggle.key] = valueMap.get(toggle.id.value) ?? false;
     }
 
-    // Cache the result
+    // Cache the full result
     await this.cache.set(
       params.appKey,
       params.envKey,

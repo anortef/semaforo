@@ -156,4 +156,37 @@ describe("GetPublicToggles", () => {
       useCase.execute({ appKey: "nope", envKey: "prod" })
     ).rejects.toThrow("App not found");
   });
+
+  it("returns single toggle value when toggleKey provided", async () => {
+    appRepo.apps.push({
+      id: { value: "app-1" }, name: "App", key: "my-app", description: "", createdAt: new Date(),
+    });
+    envRepo.envs.push({
+      id: { value: "env-1" }, appId: "app-1", name: "Prod", key: "prod", cacheTtlSeconds: 300, createdAt: new Date(),
+    });
+    toggleRepo.toggles.push(
+      { id: { value: "t-1" }, appId: "app-1", name: "A", key: "featureA", description: "", createdAt: new Date() },
+      { id: { value: "t-2" }, appId: "app-1", name: "B", key: "featureB", description: "", createdAt: new Date() },
+    );
+    valueRepo.values.push({
+      id: { value: "v-1" }, toggleId: "t-1", environmentId: "env-1", enabled: true, updatedAt: new Date(),
+    });
+
+    const result = await useCase.execute({ appKey: "my-app", envKey: "prod", toggleKey: "featureA" });
+
+    expect(result).toEqual({ featureA: true });
+  });
+
+  it("returns false for unknown toggle key", async () => {
+    appRepo.apps.push({
+      id: { value: "app-1" }, name: "App", key: "my-app", description: "", createdAt: new Date(),
+    });
+    envRepo.envs.push({
+      id: { value: "env-1" }, appId: "app-1", name: "Prod", key: "prod", cacheTtlSeconds: 300, createdAt: new Date(),
+    });
+
+    const result = await useCase.execute({ appKey: "my-app", envKey: "prod", toggleKey: "nonExistent" });
+
+    expect(result).toEqual({ nonExistent: false });
+  });
 });
