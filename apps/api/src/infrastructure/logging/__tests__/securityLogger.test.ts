@@ -50,4 +50,13 @@ describe("securityLogger", () => {
 
     expect(spy.mock.calls[0][0]).toContain("APIKEY_DELETED");
   });
+
+  it("logs admin action events", () => {
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const logger = createSecurityLogger();
+
+    logger.adminAction("user-1", "user.created");
+
+    expect(spy.mock.calls[0][0]).toContain("ADMIN_ACTION");
+  });
 });

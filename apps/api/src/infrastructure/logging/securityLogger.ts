@@ -4,6 +4,7 @@ export interface SecurityLogger {
   unauthorizedAccess(path: string): void;
   apiKeyCreated(environmentId: string, keyId: string): void;
   apiKeyDeleted(keyId: string): void;
+  adminAction(userId: string, action: string): void;
 }
 
 function timestamp(): string {
@@ -26,6 +27,9 @@ export function createSecurityLogger(): SecurityLogger {
     },
     apiKeyDeleted(keyId) {
       console.log(`[${timestamp()}] SECURITY APIKEY_DELETED keyId=${keyId}`);
+    },
+    adminAction(userId, action) {
+      console.log(`[${timestamp()}] SECURITY ADMIN_ACTION userId=${userId} action=${action}`);
     },
   };
 }
