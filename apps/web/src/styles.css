@@ -426,6 +426,8 @@ tr:hover td {
   border-radius: var(--radius);
   padding: 1rem 1.25rem;
   transition: border-color 0.15s ease;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .env-card:hover {

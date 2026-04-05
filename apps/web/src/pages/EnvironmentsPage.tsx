@@ -199,11 +199,11 @@ export function EnvironmentsPage() {
                     </button>
                   </div>
                   {keys.map((k) => (
-                    <div key={k.id.value} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.375rem" }}>
-                      <code className="badge badge-key" style={{ fontSize: "0.625rem" }}>{k.key}</code>
+                    <div key={k.id.value} style={{ display: "flex", alignItems: "center", gap: "0.375rem", marginTop: "0.375rem", minWidth: 0 }}>
+                      <code className="badge badge-key" style={{ fontSize: "0.625rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}>{k.key}</code>
                       <button
                         className="btn btn-ghost"
-                        style={{ color: "var(--color-red)", fontSize: "0.625rem", padding: "0.125rem 0.375rem" }}
+                        style={{ color: "var(--color-red)", fontSize: "0.625rem", padding: "0.125rem 0.375rem", flexShrink: 0 }}
                         onClick={() => handleDeleteKey(env.id.value, k.id.value)}
                       >
                         Delete
