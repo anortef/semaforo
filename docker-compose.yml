@@ -44,6 +44,7 @@ services:
       JWT_SECRET: "semaforo-dev-secret"
     volumes:
       - ./packages/domain/src:/app/packages/domain/src
+      - ./packages/domain/dist:/app/packages/domain/dist
       - ./apps/api/src:/app/apps/api/src
     depends_on:
       postgres:
