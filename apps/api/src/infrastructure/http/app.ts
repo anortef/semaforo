@@ -26,13 +26,26 @@ import { Login } from "../../application/Login.js";
 import { CreateApiKey } from "../../application/CreateApiKey.js";
 import { ListApiKeys } from "../../application/ListApiKeys.js";
 import { DeleteApiKey } from "../../application/DeleteApiKey.js";
+import { AdminCreateUser } from "../../application/admin/CreateUser.js";
+import { AdminListUsers } from "../../application/admin/ListUsers.js";
+import { AdminUpdateUser } from "../../application/admin/UpdateUser.js";
+import { AdminDeleteUser } from "../../application/admin/DeleteUser.js";
+import { AdminResetUserPassword } from "../../application/admin/ResetUserPassword.js";
+import { AdminListSystemSettings } from "../../application/admin/ListSystemSettings.js";
+import { AdminUpdateSystemSetting } from "../../application/admin/UpdateSystemSetting.js";
+import { AdminListAuditLog } from "../../application/admin/ListAuditLog.js";
+import { RecordAuditEvent } from "../../application/admin/RecordAuditEvent.js";
+import { PgSystemSettingRepository } from "../persistence/PgSystemSettingRepository.js";
+import { PgAuditLogRepository } from "../persistence/PgAuditLogRepository.js";
 import { publicRoutes } from "./routes/publicRoutes.js";
 import { appRoutes } from "./routes/appRoutes.js";
 import { environmentRoutes } from "./routes/environmentRoutes.js";
 import { toggleRoutes } from "./routes/toggleRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { apiKeyRoutes } from "./routes/apiKeyRoutes.js";
+import { adminRoutes } from "./routes/adminRoutes.js";
 import { createAuthMiddleware } from "./middleware/authMiddleware.js";
+import { createAdminMiddleware } from "./middleware/adminMiddleware.js";
 import { createApiKeyMiddleware } from "./middleware/apiKeyMiddleware.js";
 import { createLoginLimiter, createPublicLimiter } from "./middleware/rateLimiter.js";
 import { createSecurityLogger } from "../logging/securityLogger.js";
@@ -55,6 +68,8 @@ export function createExpressApp(
   const toggleValueRepository = new PgToggleValueRepository(pool);
   const userRepository = new PgUserRepository(pool);
   const apiKeyRepository = new PgApiKeyRepository(pool);
+  const systemSettingRepository = new PgSystemSettingRepository(pool);
+  const auditLogRepository = new PgAuditLogRepository(pool);
 
   // Use cases
   const createAppUseCase = new CreateApp(appRepository);
@@ -88,11 +103,23 @@ export function createExpressApp(
   const listApiKeysUseCase = new ListApiKeys(apiKeyRepository);
   const deleteApiKeyUseCase = new DeleteApiKey(apiKeyRepository);
 
+  // Admin use cases
+  const adminCreateUser = new AdminCreateUser(userRepository);
+  const adminListUsers = new AdminListUsers(userRepository);
+  const adminUpdateUser = new AdminUpdateUser(userRepository);
+  const adminDeleteUser = new AdminDeleteUser(userRepository);
+  const adminResetPassword = new AdminResetUserPassword(userRepository);
+  const adminListSettings = new AdminListSystemSettings(systemSettingRepository);
+  const adminUpdateSetting = new AdminUpdateSystemSetting(systemSettingRepository);
+  const adminListAuditLog = new AdminListAuditLog(auditLogRepository);
+  const recordAudit = new RecordAuditEvent(auditLogRepository);
+
   // Security logger
   const securityLogger = createSecurityLogger();
 
   // Middleware
   const auth = createAuthMiddleware(config.jwt.secret, securityLogger);
+  const adminAuth = createAdminMiddleware(securityLogger);
   const apiKeyAuth = createApiKeyMiddleware(apiKeyRepository);
 
   // Swagger
@@ -126,6 +153,20 @@ export function createExpressApp(
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
   });
+
+  // Admin routes (require JWT auth + admin role)
+  app.use("/api/admin", auth, adminAuth, adminRoutes({
+    createUser: adminCreateUser,
+    listUsers: adminListUsers,
+    updateUser: adminUpdateUser,
+    deleteUser: adminDeleteUser,
+    resetPassword: adminResetPassword,
+    listSettings: adminListSettings,
+    updateSetting: adminUpdateSetting,
+    listAuditLog: adminListAuditLog,
+    recordAudit,
+    pool,
+  }));
 
   // Protected routes (require JWT auth)
   app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
