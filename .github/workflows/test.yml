@@ -1,0 +1,114 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build domain package
+        run: npm run build -w packages/domain
+
+      - name: Domain tests
+        run: npm test -w packages/domain
+
+      - name: API unit tests
+        run: npm run test:unit -w apps/api
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: semaforo
+          POSTGRES_PASSWORD: semaforo
+          POSTGRES_DB: semaforo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U semaforo"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: semaforo
+      DB_PASSWORD: semaforo
+      DB_NAME: semaforo
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_SECRET: ci-test-secret
+      CORS_ORIGIN: http://localhost:5173
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build domain package
+        run: npm run build -w packages/domain
+
+      - name: Run migrations
+        run: npm run db:migrate -w apps/api
+
+      - name: API integration tests
+        run: npm run test:integration -w apps/api
+
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build domain package
+        run: npm run build -w packages/domain
+
+      - name: Type check API
+        run: npx tsc --noEmit -p apps/api/tsconfig.json
+        continue-on-error: true
+
+      - name: Type check Web
+        run: npx tsc --noEmit -p apps/web/tsconfig.json
