@@ -5,5 +5,9 @@ export default defineConfig({
     include: ["src/**/*.integration.test.ts"],
     testTimeout: 10000,
     fileParallelism: false,
+    env: {
+      JWT_SECRET: "semaforo-dev-secret",
+      CORS_ORIGIN: "http://localhost:5173",
+    },
   },
 });

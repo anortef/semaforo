@@ -3,11 +3,9 @@ import type { GetPublicToggles } from "../../../application/GetPublicToggles.js"
 import type { EnvironmentRepository, AppRepository } from "@semaforo/domain";
 import type { ToggleCache } from "../../cache/RedisToggleCache.js";
 
-function extractApiKey(req: { headers: Record<string, unknown>; query: Record<string, unknown> }): string {
+function extractApiKey(req: { headers: Record<string, unknown> }): string {
   const header = req.headers["x-api-key"];
   if (typeof header === "string" && header) return header;
-  const query = req.query.apiKey;
-  if (typeof query === "string" && query) return query;
   return "";
 }
 
@@ -88,7 +86,7 @@ export function publicRoutes(
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Internal server error";
-        res.status(500).json({ error: message });
+        res.status(500).json({ error: "Internal server error" });
       }
     });
   }
@@ -147,7 +145,7 @@ export function publicRoutes(
         if (message.includes("not found")) {
           res.status(404).json({ error: message });
         } else {
-          res.status(500).json({ error: message });
+          res.status(500).json({ error: "Internal server error" });
         }
       }
     }

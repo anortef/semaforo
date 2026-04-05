@@ -4,8 +4,6 @@ import type { ApiKeyRepository } from "@semaforo/domain";
 function extractApiKey(req: Request): string | null {
   const header = req.headers["x-api-key"];
   if (typeof header === "string" && header) return header;
-  const query = req.query.apiKey;
-  if (typeof query === "string" && query) return query;
   return null;
 }
 

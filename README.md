@@ -46,7 +46,7 @@ curl /api/public/apps/my-app/environments/prod/toggles \
   -H "x-api-key: sk_your_key_here"
 ```
 
-API keys can also be passed via `?apiKey=` query parameter. Keys are managed per environment in the web UI.
+API keys must be passed via the `x-api-key` header. Keys are managed per environment in the web UI.
 
 Response:
 ```json

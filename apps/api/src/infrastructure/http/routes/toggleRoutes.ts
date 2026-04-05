@@ -99,7 +99,9 @@ export function toggleRoutes(
     try {
       const toggle = await createToggle.execute({
         appId: req.params.appId,
-        ...req.body,
+        name: req.body.name,
+        key: req.body.key,
+        description: req.body.description,
       });
       res.status(201).json(toggle);
     } catch (error) {
@@ -192,7 +194,7 @@ export function toggleRoutes(
           if (message.includes("not found")) {
             res.status(404).json({ error: message });
           } else {
-            res.status(500).json({ error: message });
+            res.status(500).json({ error: "Internal server error" });
           }
         }
       }

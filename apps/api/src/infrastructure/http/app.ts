@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import swaggerUi from "swagger-ui-express";
 import type pg from "pg";
 import type { Config } from "../config/env.js";
@@ -33,6 +34,8 @@ import { authRoutes } from "./routes/authRoutes.js";
 import { apiKeyRoutes } from "./routes/apiKeyRoutes.js";
 import { createAuthMiddleware } from "./middleware/authMiddleware.js";
 import { createApiKeyMiddleware } from "./middleware/apiKeyMiddleware.js";
+import { createLoginLimiter, createPublicLimiter } from "./middleware/rateLimiter.js";
+import { createSecurityLogger } from "../logging/securityLogger.js";
 
 export function createExpressApp(
   pool: pg.Pool,
@@ -41,8 +44,9 @@ export function createExpressApp(
 ) {
   const app = express();
 
+  app.use(helmet());
   app.use(cors({ origin: config.cors.origin }));
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
 
   // Repositories
   const appRepository = new PgAppRepository(pool);
@@ -84,19 +88,22 @@ export function createExpressApp(
   const listApiKeysUseCase = new ListApiKeys(apiKeyRepository);
   const deleteApiKeyUseCase = new DeleteApiKey(apiKeyRepository);
 
+  // Security logger
+  const securityLogger = createSecurityLogger();
+
   // Middleware
-  const auth = createAuthMiddleware(config.jwt.secret);
+  const auth = createAuthMiddleware(config.jwt.secret, securityLogger);
   const apiKeyAuth = createApiKeyMiddleware(apiKeyRepository);
 
   // Swagger
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
-  // Public routes (API key required)
-  app.use("/api/public", apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache));
+  // Public routes (API key required, rate limited)
+  app.use("/api/public", createPublicLimiter(), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache));
 
-  // Auth routes (no auth)
-  app.use("/api/auth", authRoutes(login, config.jwt.secret));
+  // Auth routes (login rate limited)
+  app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwt.secret, securityLogger));
 
   /**
    * @openapi
@@ -122,8 +129,8 @@ export function createExpressApp(
 
   // Protected routes (require JWT auth)
   app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
-  app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
-  app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
+  app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
+  app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use(
     "/api",
     auth,

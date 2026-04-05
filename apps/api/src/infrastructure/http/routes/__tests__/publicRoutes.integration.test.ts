@@ -79,13 +79,13 @@ describe("Public Routes (integration)", () => {
       expect(res.body).toEqual({});
     });
 
-    it("accepts API key via apiKey query param", async () => {
+    it("rejects API key via query param", async () => {
       const { apiKey } = await createAppEnvWithKey("Shop", "shop", "Dev", "dev");
 
       const res = await supertest(app)
         .get(`/api/public/apps/shop/environments/dev/toggles?apiKey=${apiKey}`);
 
-      expect(res.body).toEqual({});
+      expect(res.status).toBe(401);
     });
 
     it("returns toggle map for an app environment", async () => {

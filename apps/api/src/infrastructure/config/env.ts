@@ -19,6 +19,14 @@ export interface Config {
   };
 }
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 export function loadConfig(): Config {
   return {
     port: parseInt(process.env.PORT ?? "3001", 10),
@@ -34,10 +42,10 @@ export function loadConfig(): Config {
       port: parseInt(process.env.REDIS_PORT ?? "6379", 10),
     },
     cors: {
-      origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+      origin: requireEnv("CORS_ORIGIN"),
     },
     jwt: {
-      secret: process.env.JWT_SECRET ?? "semaforo-dev-secret",
+      secret: requireEnv("JWT_SECRET"),
     },
   };
 }

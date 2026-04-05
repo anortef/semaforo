@@ -101,7 +101,8 @@ export function environmentRoutes(
     try {
       const environment = await createEnvironment.execute({
         appId: req.params.appId,
-        ...req.body,
+        name: req.body.name,
+        key: req.body.key,
       });
       res.status(201).json(environment);
     } catch (error) {
@@ -157,7 +158,8 @@ export function environmentRoutes(
     try {
       const environment = await updateEnvironment.execute({
         environmentId: req.params.environmentId,
-        ...req.body,
+        name: req.body.name,
+        cacheTtlSeconds: req.body.cacheTtlSeconds,
       });
       res.json(environment);
     } catch (error) {

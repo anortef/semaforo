@@ -72,7 +72,7 @@ export function appRoutes(
       if (message.includes("not found")) {
         res.status(404).json({ error: message });
       } else {
-        res.status(500).json({ error: message });
+        res.status(500).json({ error: "Internal server error" });
       }
     }
   });
@@ -117,7 +117,11 @@ export function appRoutes(
    */
   router.post("/", async (req, res) => {
     try {
-      const app = await createApp.execute(req.body);
+      const app = await createApp.execute({
+          name: req.body.name,
+          key: req.body.key,
+          description: req.body.description,
+        });
       res.status(201).json(app);
     } catch (error) {
       const message =

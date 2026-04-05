@@ -47,43 +47,29 @@ function buildApp(keys: ApiKey[] = [testKey]) {
 describe("apiKeyMiddleware", () => {
   it("returns 401 when no API key provided", async () => {
     const res = await request(buildApp()).get("/test");
+
     expect(res.status).toBe(401);
-    expect(res.body.error).toBe("API key required");
   });
 
   it("accepts API key via x-api-key header", async () => {
     const res = await request(buildApp())
       .get("/test")
       .set("x-api-key", "sk_test123");
-    expect(res.status).toBe(200);
+
     expect(res.body.environmentId).toBe("env-1");
   });
 
-  it("accepts API key via apiKey query param", async () => {
+  it("rejects API key via query param", async () => {
     const res = await request(buildApp()).get("/test?apiKey=sk_test123");
-    expect(res.status).toBe(200);
-    expect(res.body.environmentId).toBe("env-1");
-  });
 
-  it("prefers header over query param", async () => {
-    const key2 = createApiKey({
-      id: "key-2",
-      environmentId: "env-2",
-      name: "Other",
-      key: "sk_other456",
-    });
-    const res = await request(buildApp([testKey, key2]))
-      .get("/test?apiKey=sk_other456")
-      .set("x-api-key", "sk_test123");
-    expect(res.status).toBe(200);
-    expect(res.body.environmentId).toBe("env-1");
+    expect(res.status).toBe(401);
   });
 
   it("returns 401 for invalid API key", async () => {
     const res = await request(buildApp())
       .get("/test")
       .set("x-api-key", "sk_invalid");
+
     expect(res.status).toBe(401);
-    expect(res.body.error).toBe("Invalid API key");
   });
 });

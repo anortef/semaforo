@@ -2,11 +2,13 @@ import { Router } from "express";
 import type { CreateApiKey } from "../../../application/CreateApiKey.js";
 import type { ListApiKeys } from "../../../application/ListApiKeys.js";
 import type { DeleteApiKey } from "../../../application/DeleteApiKey.js";
+import type { SecurityLogger } from "../../logging/securityLogger.js";
 
 export function apiKeyRoutes(
   createApiKey: CreateApiKey,
   listApiKeys: ListApiKeys,
-  deleteApiKey: DeleteApiKey
+  deleteApiKey: DeleteApiKey,
+  logger?: SecurityLogger
 ): Router {
   const router = Router();
 
@@ -14,7 +16,7 @@ export function apiKeyRoutes(
     try {
       const keys = await listApiKeys.execute(req.params.environmentId);
       res.json(keys);
-    } catch (error) {
+    } catch {
       res.status(500).json({ error: "Failed to fetch API keys" });
     }
   });
@@ -24,6 +26,7 @@ export function apiKeyRoutes(
       const key = await createApiKey.execute({
         environmentId: req.params.environmentId,
       });
+      logger?.apiKeyCreated(req.params.environmentId, key.id.value);
       res.status(201).json(key);
     } catch (error) {
       const message =
@@ -36,6 +39,7 @@ export function apiKeyRoutes(
   router.delete("/:keyId", async (req, res) => {
     try {
       await deleteApiKey.execute(req.params.keyId);
+      logger?.apiKeyDeleted(req.params.keyId);
       res.status(204).send();
     } catch (error) {
       const message =
