@@ -43,7 +43,6 @@ const MIGRATIONS = [
   )`,
   `ALTER TABLE environments ADD COLUMN IF NOT EXISTS cache_ttl_seconds INTEGER NOT NULL DEFAULT 300`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'`,
-  `DROP TABLE IF EXISTS api_keys`,
   `CREATE TABLE IF NOT EXISTS api_keys (
     id TEXT PRIMARY KEY,
     environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
