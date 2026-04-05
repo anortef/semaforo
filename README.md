@@ -22,6 +22,15 @@ Interactive API docs are available via Swagger UI:
 
 The docs are auto-generated from JSDoc `@openapi` annotations in the route files.
 
+## Default Credentials
+
+A default admin user is created on first startup:
+
+| Field | Value |
+|-------|-------|
+| Email | `admin@semaforo.local` |
+| Password | `admin` |
+
 ## Public API
 
 Client applications consume toggles via:
@@ -95,6 +104,8 @@ docs/           Architecture and domain documentation
 
 | Method | Path | Description |
 |--------|------|-------------|
+| POST | `/api/auth/login` | Login (returns JWT) |
+| GET | `/api/auth/me` | Current user info |
 | GET | `/api/health` | Health check |
 | GET | `/api/apps` | List all apps |
 | POST | `/api/apps` | Create an app |
