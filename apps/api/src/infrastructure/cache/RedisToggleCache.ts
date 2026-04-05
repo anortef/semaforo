@@ -56,6 +56,11 @@ export class RedisToggleCache implements ToggleCache {
 
   async invalidate(appKey: string, envKey: string): Promise<void> {
     await this.redis.del(this.cacheKey(appKey, envKey));
+    // Also clear API-key-level caches since they may contain stale data
+    const apiKeyKeys = await this.redis.keys("toggles:apikey:*");
+    if (apiKeyKeys.length > 0) {
+      await this.redis.del(...apiKeyKeys);
+    }
   }
 
   async getByApiKey(apiKey: string): Promise<Record<string, boolean> | null> {
