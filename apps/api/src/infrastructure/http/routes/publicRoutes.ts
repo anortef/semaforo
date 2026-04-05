@@ -1,11 +1,21 @@
 import { Router } from "express";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
 import type { EnvironmentRepository, AppRepository } from "@semaforo/domain";
+import type { ToggleCache } from "../../cache/RedisToggleCache.js";
+
+function extractApiKey(req: { headers: Record<string, unknown>; query: Record<string, unknown> }): string {
+  const header = req.headers["x-api-key"];
+  if (typeof header === "string" && header) return header;
+  const query = req.query.apiKey;
+  if (typeof query === "string" && query) return query;
+  return "";
+}
 
 export function publicRoutes(
   getPublicToggles: GetPublicToggles,
   environmentRepository?: EnvironmentRepository,
-  appRepository?: AppRepository
+  appRepository?: AppRepository,
+  cache?: ToggleCache
 ): Router {
   const router = Router();
 
@@ -15,7 +25,7 @@ export function publicRoutes(
    *   get:
    *     tags: [Public]
    *     summary: Get toggle states using only the API key
-   *     description: Returns toggle states for the environment associated with the API key. No need to know app or environment keys.
+   *     description: Returns toggle states for the environment associated with the API key. Cached by API key with per-environment TTL.
    *     parameters:
    *       - in: header
    *         name: x-api-key
@@ -40,8 +50,18 @@ export function publicRoutes(
    *         description: Environment or app not found
    */
   if (environmentRepository && appRepository) {
-    router.get("/toggles", async (_req, res) => {
+    router.get("/toggles", async (req, res) => {
       try {
+        const apiKeyValue = extractApiKey(req);
+
+        if (cache) {
+          const cached = await cache.getByApiKey(apiKeyValue);
+          if (cached) {
+            res.json(cached);
+            return;
+          }
+        }
+
         const environmentId = res.locals.apiKeyEnvironmentId as string;
         const env = await environmentRepository.findById(environmentId);
         if (!env) {
@@ -59,6 +79,11 @@ export function publicRoutes(
           appKey: app.key,
           envKey: env.key,
         });
+
+        if (cache) {
+          await cache.setByApiKey(apiKeyValue, toggles, env.cacheTtlSeconds);
+        }
+
         res.json(toggles);
       } catch (error) {
         const message =

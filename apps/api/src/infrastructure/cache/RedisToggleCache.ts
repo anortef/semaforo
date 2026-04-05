@@ -9,6 +9,12 @@ export interface ToggleCache {
     ttlSeconds: number
   ): Promise<void>;
   invalidate(appKey: string, envKey: string): Promise<void>;
+  getByApiKey(apiKey: string): Promise<Record<string, boolean> | null>;
+  setByApiKey(
+    apiKey: string,
+    toggles: Record<string, boolean>,
+    ttlSeconds: number
+  ): Promise<void>;
 }
 
 export class RedisToggleCache implements ToggleCache {
@@ -45,6 +51,26 @@ export class RedisToggleCache implements ToggleCache {
   async invalidate(appKey: string, envKey: string): Promise<void> {
     await this.redis.del(this.cacheKey(appKey, envKey));
   }
+
+  async getByApiKey(apiKey: string): Promise<Record<string, boolean> | null> {
+    const data = await this.redis.get(`toggles:apikey:${apiKey}`);
+    if (!data) return null;
+    return JSON.parse(data);
+  }
+
+  async setByApiKey(
+    apiKey: string,
+    toggles: Record<string, boolean>,
+    ttlSeconds: number
+  ): Promise<void> {
+    if (ttlSeconds <= 0) return;
+    await this.redis.set(
+      `toggles:apikey:${apiKey}`,
+      JSON.stringify(toggles),
+      "EX",
+      ttlSeconds
+    );
+  }
 }
 
 export class NoOpToggleCache implements ToggleCache {
@@ -53,4 +79,8 @@ export class NoOpToggleCache implements ToggleCache {
   }
   async set(): Promise<void> {}
   async invalidate(): Promise<void> {}
+  async getByApiKey(): Promise<null> {
+    return null;
+  }
+  async setByApiKey(): Promise<void> {}
 }
