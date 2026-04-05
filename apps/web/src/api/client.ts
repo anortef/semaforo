@@ -79,6 +79,32 @@ export interface ApiKeyDTO {
   key: string;
 }
 
+export interface AdminUserDTO {
+  id: { value: string };
+  email: string;
+  name: string;
+  role: string;
+  disabled: boolean;
+  createdAt: string;
+}
+
+export interface SystemSettingDTO {
+  id: { value: string };
+  key: string;
+  value: string;
+  updatedAt: string;
+}
+
+export interface AuditLogEntryDTO {
+  id: { value: string };
+  userId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  details: string;
+  createdAt: string;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -162,5 +188,36 @@ export const api = {
       request<void>(`/api-keys/${keyId}`, {
         method: "DELETE",
       }),
+  },
+  admin: {
+    users: {
+      list: (limit = 50, offset = 0) =>
+        request<{ users: AdminUserDTO[]; total: number }>(`/admin/users?limit=${limit}&offset=${offset}`),
+      create: (data: { email: string; name: string; password: string; role: string }) =>
+        request<AdminUserDTO>("/admin/users", { method: "POST", body: JSON.stringify(data) }),
+      update: (userId: string, data: { name?: string; role?: string; disabled?: boolean }) =>
+        request<AdminUserDTO>(`/admin/users/${userId}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (userId: string) =>
+        request<void>(`/admin/users/${userId}`, { method: "DELETE" }),
+      resetPassword: (userId: string, newPassword: string) =>
+        request<void>(`/admin/users/${userId}/reset-password`, {
+          method: "POST",
+          body: JSON.stringify({ newPassword }),
+        }),
+    },
+    settings: {
+      list: () => request<SystemSettingDTO[]>("/admin/settings"),
+      update: (key: string, value: string) =>
+        request<SystemSettingDTO>(`/admin/settings/${key}`, {
+          method: "PUT",
+          body: JSON.stringify({ value }),
+        }),
+    },
+    auditLog: {
+      list: (limit = 50, offset = 0) =>
+        request<{ entries: AuditLogEntryDTO[]; total: number }>(`/admin/audit-log?limit=${limit}&offset=${offset}`),
+    },
+    health: () =>
+      request<{ database: string; users: number; apps: number; uptime: number }>("/admin/health"),
   },
 };

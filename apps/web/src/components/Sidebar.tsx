@@ -80,6 +80,30 @@ export function Sidebar() {
         </div>
       )}
 
+      {user?.role === "admin" && (
+        <div className="sidebar-section">
+          <div className="sidebar-section-title">Admin</div>
+          <nav className="sidebar-nav">
+            <NavLink to="/admin/users" className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}>
+              <span className="sidebar-link-icon">&#9787;</span>
+              Users
+            </NavLink>
+            <NavLink to="/admin/settings" className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}>
+              <span className="sidebar-link-icon">&#9881;</span>
+              Settings
+            </NavLink>
+            <NavLink to="/admin/audit-log" className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}>
+              <span className="sidebar-link-icon">&#9998;</span>
+              Audit Log
+            </NavLink>
+            <NavLink to="/admin/health" className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}>
+              <span className="sidebar-link-icon">&#9829;</span>
+              Health
+            </NavLink>
+          </nav>
+        </div>
+      )}
+
       <div className="sidebar-footer">
         {user && (
           <div className="sidebar-user">
