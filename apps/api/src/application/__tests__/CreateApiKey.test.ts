@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { CreateApiKey } from "../CreateApiKey.js";
-import type { ApiKey, ApiKeyRepository, App, AppRepository } from "@semaforo/domain";
-import { createApp } from "@semaforo/domain";
+import type { ApiKey, ApiKeyRepository, Environment, EnvironmentRepository } from "@semaforo/domain";
+import { createEnvironment } from "@semaforo/domain";
 
 class InMemoryApiKeyRepository implements ApiKeyRepository {
   private keys: ApiKey[] = [];
@@ -12,8 +12,8 @@ class InMemoryApiKeyRepository implements ApiKeyRepository {
   async findByKey(key: string): Promise<ApiKey | null> {
     return this.keys.find((k) => k.key === key) ?? null;
   }
-  async findByAppId(appId: string): Promise<ApiKey[]> {
-    return this.keys.filter((k) => k.appId === appId);
+  async findByEnvironmentId(environmentId: string): Promise<ApiKey[]> {
+    return this.keys.filter((k) => k.environmentId === environmentId);
   }
   async save(apiKey: ApiKey): Promise<void> {
     this.keys.push(apiKey);
@@ -23,61 +23,57 @@ class InMemoryApiKeyRepository implements ApiKeyRepository {
   }
 }
 
-class InMemoryAppRepository implements AppRepository {
-  private apps: App[] = [];
+class InMemoryEnvironmentRepository implements EnvironmentRepository {
+  private envs: Environment[] = [];
 
-  async findById(id: string): Promise<App | null> {
-    return this.apps.find((a) => a.id.value === id) ?? null;
+  async findById(id: string): Promise<Environment | null> {
+    return this.envs.find((e) => e.id.value === id) ?? null;
   }
-  async findByKey(key: string): Promise<App | null> {
-    return this.apps.find((a) => a.key === key) ?? null;
+  async findByAppId(appId: string): Promise<Environment[]> {
+    return this.envs.filter((e) => e.appId === appId);
   }
-  async findAll(): Promise<App[]> {
-    return [...this.apps];
+  async findByAppIdAndKey(appId: string, key: string): Promise<Environment | null> {
+    return this.envs.find((e) => e.appId === appId && e.key === key) ?? null;
   }
-  async save(app: App): Promise<void> {
-    this.apps.push(app);
+  async save(env: Environment): Promise<void> {
+    this.envs.push(env);
   }
   async delete(id: string): Promise<void> {
-    this.apps = this.apps.filter((a) => a.id.value !== id);
+    this.envs = this.envs.filter((e) => e.id.value !== id);
   }
 }
 
 describe("CreateApiKey", () => {
   let apiKeyRepo: InMemoryApiKeyRepository;
-  let appRepo: InMemoryAppRepository;
+  let envRepo: InMemoryEnvironmentRepository;
   let useCase: CreateApiKey;
 
   beforeEach(() => {
     apiKeyRepo = new InMemoryApiKeyRepository();
-    appRepo = new InMemoryAppRepository();
-    useCase = new CreateApiKey(apiKeyRepo, appRepo);
+    envRepo = new InMemoryEnvironmentRepository();
+    useCase = new CreateApiKey(apiKeyRepo, envRepo);
 
-    const app = createApp({ id: "app-1", name: "Shop", key: "shop" });
-    appRepo.save(app);
+    const env = createEnvironment({ id: "env-1", appId: "app-1", name: "Prod", key: "prod" });
+    envRepo.save(env);
   });
 
-  it("creates an API key for an existing app", async () => {
-    const result = await useCase.execute({
-      appId: "app-1",
-      name: "Production Key",
-    });
+  it("creates an API key for an existing environment", async () => {
+    const result = await useCase.execute({ environmentId: "env-1" });
 
-    expect(result.name).toBe("Production Key");
-    expect(result.appId).toBe("app-1");
+    expect(result.environmentId).toBe("env-1");
     expect(result.key).toMatch(/^sk_/);
     expect(result.key.length).toBeGreaterThan(20);
   });
 
-  it("rejects non-existent app", async () => {
+  it("rejects non-existent environment", async () => {
     await expect(
-      useCase.execute({ appId: "non-existent", name: "Key" })
-    ).rejects.toThrow("App not found");
+      useCase.execute({ environmentId: "non-existent" })
+    ).rejects.toThrow("Environment not found");
   });
 
   it("generates unique keys", async () => {
-    const k1 = await useCase.execute({ appId: "app-1", name: "Key 1" });
-    const k2 = await useCase.execute({ appId: "app-1", name: "Key 2" });
+    const k1 = await useCase.execute({ environmentId: "env-1" });
+    const k2 = await useCase.execute({ environmentId: "env-1" });
 
     expect(k1.key).not.toBe(k2.key);
   });

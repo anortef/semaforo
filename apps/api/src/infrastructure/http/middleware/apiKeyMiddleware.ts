@@ -23,7 +23,7 @@ export function createApiKeyMiddleware(apiKeyRepository: ApiKeyRepository) {
       return;
     }
 
-    res.locals.apiKeyAppId = apiKey.appId;
+    res.locals.apiKeyEnvironmentId = apiKey.environmentId;
     next();
   };
 }

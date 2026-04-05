@@ -1,15 +1,19 @@
+import crypto from "node:crypto";
 import {
   createEnvironment,
+  createApiKey,
   type Environment,
   type AppRepository,
   type EnvironmentRepository,
+  type ApiKeyRepository,
 } from "@semaforo/domain";
 import { v4 as uuid } from "uuid";
 
 export class CreateEnvironment {
   constructor(
     private appRepository: AppRepository,
-    private environmentRepository: EnvironmentRepository
+    private environmentRepository: EnvironmentRepository,
+    private apiKeyRepository?: ApiKeyRepository
   ) {}
 
   async execute(params: {
@@ -40,6 +44,17 @@ export class CreateEnvironment {
     });
 
     await this.environmentRepository.save(environment);
+
+    if (this.apiKeyRepository) {
+      const apiKey = createApiKey({
+        id: uuid(),
+        environmentId: environment.id.value,
+        name: uuid(),
+        key: `sk_${crypto.randomBytes(24).toString("hex")}`,
+      });
+      await this.apiKeyRepository.save(apiKey);
+    }
+
     return environment;
   }
 }

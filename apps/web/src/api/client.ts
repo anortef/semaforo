@@ -29,6 +29,10 @@ async function request<T>(
     throw new Error(body.error ?? `Request failed: ${response.status}`);
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 
@@ -70,7 +74,7 @@ export interface AuthUserDTO {
 
 export interface ApiKeyDTO {
   id: { value: string };
-  appId: string;
+  environmentId: string;
   name: string;
   key: string;
 }
@@ -148,12 +152,11 @@ export const api = {
       ),
   },
   apiKeys: {
-    list: (appId: string) =>
-      request<ApiKeyDTO[]>(`/apps/${appId}/api-keys`),
-    create: (appId: string, name: string) =>
-      request<ApiKeyDTO>(`/apps/${appId}/api-keys`, {
+    list: (environmentId: string) =>
+      request<ApiKeyDTO[]>(`/environments/${environmentId}/api-keys`),
+    create: (environmentId: string) =>
+      request<ApiKeyDTO>(`/environments/${environmentId}/api-keys`, {
         method: "POST",
-        body: JSON.stringify({ name }),
       }),
     delete: (keyId: string) =>
       request<void>(`/api-keys/${keyId}`, {

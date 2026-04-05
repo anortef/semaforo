@@ -4,7 +4,7 @@ export interface ApiKeyId {
 
 export interface ApiKey {
   readonly id: ApiKeyId;
-  readonly appId: string;
+  readonly environmentId: string;
   readonly name: string;
   readonly key: string;
   readonly createdAt: Date;
@@ -12,7 +12,7 @@ export interface ApiKey {
 
 export function createApiKey(params: {
   id: string;
-  appId: string;
+  environmentId: string;
   name: string;
   key: string;
 }): ApiKey {
@@ -24,7 +24,7 @@ export function createApiKey(params: {
   }
   return {
     id: { value: params.id },
-    appId: params.appId,
+    environmentId: params.environmentId,
     name: params.name.trim(),
     key: params.key,
     createdAt: new Date(),

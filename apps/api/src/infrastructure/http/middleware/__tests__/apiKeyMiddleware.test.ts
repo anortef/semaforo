@@ -16,8 +16,8 @@ class InMemoryApiKeyRepository implements ApiKeyRepository {
   async findByKey(key: string): Promise<ApiKey | null> {
     return this.keys.find((k) => k.key === key) ?? null;
   }
-  async findByAppId(appId: string): Promise<ApiKey[]> {
-    return this.keys.filter((k) => k.appId === appId);
+  async findByEnvironmentId(environmentId: string): Promise<ApiKey[]> {
+    return this.keys.filter((k) => k.environmentId === environmentId);
   }
   async save(apiKey: ApiKey): Promise<void> {
     this.keys.push(apiKey);
@@ -29,7 +29,7 @@ class InMemoryApiKeyRepository implements ApiKeyRepository {
 
 const testKey = createApiKey({
   id: "key-1",
-  appId: "app-1",
+  environmentId: "env-1",
   name: "Test",
   key: "sk_test123",
 });
@@ -39,7 +39,7 @@ function buildApp(keys: ApiKey[] = [testKey]) {
   const app = express();
   app.use(createApiKeyMiddleware(repo));
   app.get("/test", (_req, res) => {
-    res.json({ ok: true, appId: res.locals.apiKeyAppId });
+    res.json({ ok: true, environmentId: res.locals.apiKeyEnvironmentId });
   });
   return app;
 }
@@ -56,19 +56,19 @@ describe("apiKeyMiddleware", () => {
       .get("/test")
       .set("x-api-key", "sk_test123");
     expect(res.status).toBe(200);
-    expect(res.body.appId).toBe("app-1");
+    expect(res.body.environmentId).toBe("env-1");
   });
 
   it("accepts API key via apiKey query param", async () => {
     const res = await request(buildApp()).get("/test?apiKey=sk_test123");
     expect(res.status).toBe(200);
-    expect(res.body.appId).toBe("app-1");
+    expect(res.body.environmentId).toBe("env-1");
   });
 
   it("prefers header over query param", async () => {
     const key2 = createApiKey({
       id: "key-2",
-      appId: "app-2",
+      environmentId: "env-2",
       name: "Other",
       key: "sk_other456",
     });
@@ -76,7 +76,7 @@ describe("apiKeyMiddleware", () => {
       .get("/test?apiKey=sk_other456")
       .set("x-api-key", "sk_test123");
     expect(res.status).toBe(200);
-    expect(res.body.appId).toBe("app-1");
+    expect(res.body.environmentId).toBe("env-1");
   });
 
   it("returns 401 for invalid API key", async () => {

@@ -21,7 +21,7 @@ export function TogglesPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [selectedEnvKey, setSelectedEnvKey] = useState("");
-  const [apiKeys, setApiKeys] = useState<ApiKeyDTO[]>([]);
+  const [envKeys, setEnvKeys] = useState<Map<string, ApiKeyDTO[]>>(new Map());
 
   const loadToggleStates = useCallback(async () => {
     if (!app) return;
@@ -47,8 +47,15 @@ export function TogglesPage() {
     api.apps.get(appId).then(setApp).catch(console.error);
     api.environments.list(appId).then(setEnvironments).catch(console.error);
     api.toggles.list(appId).then(setToggles).catch(console.error);
-    api.apiKeys.list(appId).then(setApiKeys).catch(console.error);
   }, [appId]);
+
+  useEffect(() => {
+    for (const env of environments) {
+      api.apiKeys.list(env.id.value).then((keys) => {
+        setEnvKeys((prev) => new Map(prev).set(env.id.value, keys));
+      }).catch(console.error);
+    }
+  }, [environments]);
 
   useEffect(() => {
     if (environments.length > 0 && !selectedEnvKey) {
@@ -61,25 +68,6 @@ export function TogglesPage() {
       loadToggleStates();
     }
   }, [app, environments, toggles, loadToggleStates]);
-
-  async function handleCreateKey() {
-    if (!appId) return;
-    try {
-      const key = await api.apiKeys.create(appId, crypto.randomUUID());
-      setApiKeys((prev) => [key, ...prev]);
-    } catch {
-      // ignore
-    }
-  }
-
-  async function handleDeleteKey(keyId: string) {
-    try {
-      await api.apiKeys.delete(keyId);
-      setApiKeys((prev) => prev.filter((k) => k.id.value !== keyId));
-    } catch {
-      // ignore
-    }
-  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -118,6 +106,11 @@ export function TogglesPage() {
       });
     }
   }
+
+  const selectedEnv = environments.find((e) => e.key === selectedEnvKey);
+  const selectedEnvApiKey = selectedEnv
+    ? (envKeys.get(selectedEnv.id.value) ?? [])[0]?.key
+    : undefined;
 
   const apiBaseUrl = typeof window !== "undefined"
     ? `${window.location.protocol}//${window.location.host}`
@@ -201,14 +194,14 @@ export function TogglesPage() {
             <div className="api-info-curl-label">cURL</div>
             <pre className="api-code-block">
               <code>{`curl ${apiBaseUrl}${apiEndpoint} \\
-  -H "x-api-key: ${apiKeys[0]?.key ?? "<your-api-key>"}"`}</code>
+  -H "x-api-key: ${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
             </pre>
           </div>
 
           <div className="api-info-curl">
             <div className="api-info-curl-label">Or via query parameter</div>
             <pre className="api-code-block">
-              <code>{`curl "${apiBaseUrl}${apiEndpoint}?apiKey=${apiKeys[0]?.key ?? "<your-api-key>"}"`}</code>
+              <code>{`curl "${apiBaseUrl}${apiEndpoint}?apiKey=${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
             </pre>
           </div>
 
@@ -217,58 +210,13 @@ export function TogglesPage() {
             <pre className="api-code-block">
               <code>{`{
 ${toggles.map((t) => {
-  const env = environments.find((e) => e.key === selectedEnvKey);
-  const stateKey = env ? `${t.id.value}:${env.id.value}` : "";
+  const stateKey = selectedEnv ? `${t.id.value}:${selectedEnv.id.value}` : "";
   const enabled = toggleStates.get(stateKey) ?? false;
   return `  "${t.key}": ${enabled}`;
 }).join(",\n")}
 }`}</code>
             </pre>
           </div>
-        </div>
-      )}
-
-      {app && (
-        <div className="card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: apiKeys.length > 0 ? "1rem" : 0 }}>
-            <div className="card-title" style={{ marginBottom: 0 }}>API Keys</div>
-            <button className="btn btn-ghost" onClick={handleCreateKey}>+ New Key</button>
-          </div>
-
-          {apiKeys.length > 0 && (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Key</th>
-                    <th style={{ width: 80 }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {apiKeys.map((k) => (
-                    <tr key={k.id.value}>
-                      <td><code className="badge badge-key">{k.key}</code></td>
-                      <td>
-                        <button
-                          className="btn btn-ghost"
-                          style={{ color: "var(--color-red)", fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
-                          onClick={() => handleDeleteKey(k.id.value)}
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {apiKeys.length === 0 && (
-            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
-              No API keys yet. Create one to access the public toggle endpoint.
-            </p>
-          )}
         </div>
       )}
 

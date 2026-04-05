@@ -11,8 +11,8 @@ class InMemoryApiKeyRepository implements ApiKeyRepository {
   async findByKey(key: string): Promise<ApiKey | null> {
     return this.keys.find((k) => k.key === key) ?? null;
   }
-  async findByAppId(appId: string): Promise<ApiKey[]> {
-    return this.keys.filter((k) => k.appId === appId);
+  async findByEnvironmentId(environmentId: string): Promise<ApiKey[]> {
+    return this.keys.filter((k) => k.environmentId === environmentId);
   }
   async save(apiKey: ApiKey): Promise<void> {
     this.keys.push(apiKey);
@@ -32,7 +32,7 @@ describe("ValidateApiKey", () => {
 
     const key = createApiKey({
       id: "key-1",
-      appId: "app-1",
+      environmentId: "env-1",
       name: "Prod",
       key: "sk_test123",
     });
@@ -43,7 +43,7 @@ describe("ValidateApiKey", () => {
     const result = await useCase.execute("sk_test123");
 
     expect(result).not.toBeNull();
-    expect(result!.appId).toBe("app-1");
+    expect(result!.environmentId).toBe("env-1");
   });
 
   it("returns null for an invalid key", async () => {

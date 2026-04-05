@@ -58,7 +58,8 @@ export function createExpressApp(
   const getApp = new GetApp(appRepository);
   const createEnvironment = new CreateEnvironment(
     appRepository,
-    environmentRepository
+    environmentRepository,
+    apiKeyRepository
   );
   const listEnvironments = new ListEnvironments(environmentRepository);
   const updateEnvironmentUseCase = new UpdateEnvironment(environmentRepository, appRepository, cache);
@@ -79,7 +80,7 @@ export function createExpressApp(
     cache
   );
   const login = new Login(userRepository, config.jwt.secret);
-  const createApiKeyUseCase = new CreateApiKey(apiKeyRepository, appRepository);
+  const createApiKeyUseCase = new CreateApiKey(apiKeyRepository, environmentRepository);
   const listApiKeysUseCase = new ListApiKeys(apiKeyRepository);
   const deleteApiKeyUseCase = new DeleteApiKey(apiKeyRepository);
 
@@ -121,7 +122,7 @@ export function createExpressApp(
 
   // Protected routes (require JWT auth)
   app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
-  app.use("/api/apps", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
+  app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
   app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
   app.use(
     "/api",

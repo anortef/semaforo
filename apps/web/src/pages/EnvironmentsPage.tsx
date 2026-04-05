@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, type AppDTO, type EnvironmentDTO } from "../api/client.js";
+import { api, type AppDTO, type EnvironmentDTO, type ApiKeyDTO } from "../api/client.js";
 
 const TTL_PRESETS = [
   { label: "No cache", value: 0 },
@@ -22,6 +22,7 @@ export function EnvironmentsPage() {
   const { appId } = useParams<{ appId: string }>();
   const [app, setApp] = useState<AppDTO | null>(null);
   const [environments, setEnvironments] = useState<EnvironmentDTO[]>([]);
+  const [envKeys, setEnvKeys] = useState<Map<string, ApiKeyDTO[]>>(new Map());
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -32,6 +33,14 @@ export function EnvironmentsPage() {
     api.apps.get(appId).then(setApp).catch(console.error);
     api.environments.list(appId).then(setEnvironments).catch(console.error);
   }, [appId]);
+
+  useEffect(() => {
+    for (const env of environments) {
+      api.apiKeys.list(env.id.value).then((keys) => {
+        setEnvKeys((prev) => new Map(prev).set(env.id.value, keys));
+      }).catch(console.error);
+    }
+  }, [environments]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -66,6 +75,32 @@ export function EnvironmentsPage() {
       await api.environments.clearCache(envId);
     } catch (err) {
       console.error("Failed to clear cache:", err);
+    }
+  }
+
+  async function handleCreateKey(envId: string) {
+    try {
+      const key = await api.apiKeys.create(envId);
+      setEnvKeys((prev) => {
+        const next = new Map(prev);
+        next.set(envId, [key, ...(prev.get(envId) ?? [])]);
+        return next;
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleDeleteKey(envId: string, keyId: string) {
+    try {
+      await api.apiKeys.delete(keyId);
+      setEnvKeys((prev) => {
+        const next = new Map(prev);
+        next.set(envId, (prev.get(envId) ?? []).filter((k) => k.id.value !== keyId));
+        return next;
+      });
+    } catch {
+      // ignore
     }
   }
 
@@ -120,37 +155,65 @@ export function EnvironmentsPage() {
         </div>
       ) : (
         <div className="env-grid">
-          {environments.map((env) => (
-            <div key={env.id.value} className="env-card">
-              <div className="env-card-name">{env.name}</div>
-              <div className="env-card-key">{env.key}</div>
+          {environments.map((env) => {
+            const keys = envKeys.get(env.id.value) ?? [];
+            return (
+              <div key={env.id.value} className="env-card">
+                <div className="env-card-name">{env.name}</div>
+                <div className="env-card-key">{env.key}</div>
 
-              <div className="env-card-ttl">
-                <label className="env-card-ttl-label">Cache TTL</label>
-                <div className="ttl-presets">
-                  {TTL_PRESETS.map((preset) => (
+                <div className="env-card-ttl">
+                  <label className="env-card-ttl-label">Cache TTL</label>
+                  <div className="ttl-presets">
+                    {TTL_PRESETS.map((preset) => (
+                      <button
+                        key={preset.value}
+                        className={`ttl-btn${env.cacheTtlSeconds === preset.value ? " ttl-btn-active" : ""}`}
+                        onClick={() => handleTtlChange(env.id.value, preset.value)}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="env-card-ttl-current">
+                    Current: {formatTtl(env.cacheTtlSeconds)}
+                  </div>
+                  <button
+                    className="btn btn-ghost"
+                    style={{ marginTop: "0.5rem", width: "100%", fontSize: "0.75rem" }}
+                    onClick={() => handleClearCache(env.id.value)}
+                  >
+                    Clear Cache
+                  </button>
+                </div>
+
+                <div className="env-card-ttl">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label className="env-card-ttl-label" style={{ marginBottom: 0 }}>API Keys</label>
                     <button
-                      key={preset.value}
-                      className={`ttl-btn${env.cacheTtlSeconds === preset.value ? " ttl-btn-active" : ""}`}
-                      onClick={() => handleTtlChange(env.id.value, preset.value)}
+                      className="btn btn-ghost"
+                      style={{ fontSize: "0.6875rem", padding: "0.125rem 0.5rem" }}
+                      onClick={() => handleCreateKey(env.id.value)}
                     >
-                      {preset.label}
+                      + New
                     </button>
+                  </div>
+                  {keys.map((k) => (
+                    <div key={k.id.value} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.375rem" }}>
+                      <code className="badge badge-key" style={{ fontSize: "0.625rem" }}>{k.key}</code>
+                      <button
+                        className="btn btn-ghost"
+                        style={{ color: "var(--color-red)", fontSize: "0.625rem", padding: "0.125rem 0.375rem" }}
+                        onClick={() => handleDeleteKey(env.id.value, k.id.value)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   ))}
                 </div>
-                <div className="env-card-ttl-current">
-                  Current: {formatTtl(env.cacheTtlSeconds)}
-                </div>
-                <button
-                  className="btn btn-ghost"
-                  style={{ marginTop: "0.5rem", width: "100%", fontSize: "0.75rem" }}
-                  onClick={() => handleClearCache(env.id.value)}
-                >
-                  Clear Cache
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

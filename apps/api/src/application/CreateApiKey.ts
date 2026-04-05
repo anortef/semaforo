@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { createApiKey, type ApiKey, type ApiKeyRepository, type AppRepository } from "@semaforo/domain";
+import { createApiKey, type ApiKey, type ApiKeyRepository, type EnvironmentRepository } from "@semaforo/domain";
 import { v4 as uuid } from "uuid";
 
 function generateKey(): string {
@@ -9,22 +9,19 @@ function generateKey(): string {
 export class CreateApiKey {
   constructor(
     private apiKeyRepository: ApiKeyRepository,
-    private appRepository: AppRepository
+    private environmentRepository: EnvironmentRepository
   ) {}
 
-  async execute(params: {
-    appId: string;
-    name: string;
-  }): Promise<ApiKey> {
-    const app = await this.appRepository.findById(params.appId);
-    if (!app) {
-      throw new Error("App not found");
+  async execute(params: { environmentId: string }): Promise<ApiKey> {
+    const env = await this.environmentRepository.findById(params.environmentId);
+    if (!env) {
+      throw new Error("Environment not found");
     }
 
     const apiKey = createApiKey({
       id: uuid(),
-      appId: params.appId,
-      name: params.name,
+      environmentId: params.environmentId,
+      name: uuid(),
       key: generateKey(),
     });
 
