@@ -1,5 +1,5 @@
 export { createUser } from "./entities/User.js";
-export type { User, UserId } from "./entities/User.js";
+export type { User, UserId, UserRole } from "./entities/User.js";
 
 export { createApp } from "./entities/App.js";
 export type { App, AppId } from "./entities/App.js";

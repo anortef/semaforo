@@ -42,6 +42,7 @@ const MIGRATIONS = [
     UNIQUE(toggle_id, environment_id)
   )`,
   `ALTER TABLE environments ADD COLUMN IF NOT EXISTS cache_ttl_seconds INTEGER NOT NULL DEFAULT 300`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'`,
 ];
 
 async function migrate() {

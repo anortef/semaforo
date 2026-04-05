@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useParams } from "react-router-dom";
 import { api, type AppDTO } from "../api/client.js";
+import { useAuth } from "../context/AuthContext.js";
 
 export function Sidebar() {
   const [apps, setApps] = useState<AppDTO[]>([]);
   const { appId } = useParams<{ appId: string }>();
+  const { user, logout } = useAuth();
 
   useEffect(() => {
     api.apps.list().then(setApps).catch(console.error);
@@ -82,6 +84,17 @@ export function Sidebar() {
           </nav>
         </div>
       )}
+
+      <div className="sidebar-footer">
+        {user && (
+          <div className="sidebar-user">
+            <span className="sidebar-user-email">{user.email}</span>
+            <button className="btn btn-logout" onClick={logout}>
+              Sign Out
+            </button>
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

@@ -1,7 +1,11 @@
 import pg from "pg";
+import bcrypt from "bcrypt";
+import { v4 as uuid } from "uuid";
 import { loadConfig } from "../config/env.js";
 import { createExpressApp } from "../http/app.js";
 import { NoOpToggleCache } from "../cache/RedisToggleCache.js";
+import { createUser } from "@semaforo/domain";
+import { PgUserRepository } from "../persistence/PgUserRepository.js";
 
 const config = loadConfig();
 
@@ -26,3 +30,17 @@ export async function cleanDatabase(pool: pg.Pool) {
   await pool.query("DELETE FROM apps");
   await pool.query("DELETE FROM users");
 }
+
+export async function seedTestAdmin(pool: pg.Pool): Promise<void> {
+  const userRepo = new PgUserRepository(pool);
+  const hash = await bcrypt.hash("admin", 10);
+  const admin = createUser({
+    id: uuid(),
+    email: "admin@semaforo.local",
+    name: "Admin",
+    passwordHash: hash,
+    role: "admin",
+  });
+  await userRepo.save(admin);
+}
+

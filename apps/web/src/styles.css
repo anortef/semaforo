@@ -643,3 +643,81 @@ tr:hover td {
   color: var(--color-text);
   white-space: pre;
 }
+
+/* Login page */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+.login-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 380px;
+}
+
+.login-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-align: center;
+  margin-bottom: 0.25rem;
+}
+
+.login-subtitle {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.login-card .form-field {
+  margin-bottom: 1rem;
+}
+
+.login-card .form-field input {
+  width: 100%;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+  margin-top: auto;
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sidebar-user-email {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  font-size: 0.6875rem;
+  padding: 0.25rem 0.625rem;
+  flex-shrink: 0;
+}
+
+.btn-logout:hover {
+  background: var(--color-red);
+  border-color: var(--color-red);
+  color: #fff;
+}

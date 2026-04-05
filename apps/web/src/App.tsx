@@ -1,10 +1,22 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext.js";
 import { Layout } from "./components/Layout.js";
 import { AppsPage } from "./pages/AppsPage.js";
 import { TogglesPage } from "./pages/TogglesPage.js";
 import { EnvironmentsPage } from "./pages/EnvironmentsPage.js";
+import { LoginPage } from "./pages/LoginPage.js";
 
-export function App() {
+function ProtectedRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="login-page"><p>Loading...</p></div>;
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -14,5 +26,31 @@ export function App() {
         <Route path="/apps/:appId" element={<Navigate to="toggles" replace />} />
       </Route>
     </Routes>
+  );
+}
+
+function AppRoutes() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return <div className="login-page"><p>Loading...</p></div>;
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to="/" replace /> : <LoginPage />}
+      />
+      <Route path="/*" element={<ProtectedRoutes />} />
+    </Routes>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 }

@@ -9,6 +9,7 @@ import { PgAppRepository } from "../persistence/PgAppRepository.js";
 import { PgEnvironmentRepository } from "../persistence/PgEnvironmentRepository.js";
 import { PgFeatureToggleRepository } from "../persistence/PgFeatureToggleRepository.js";
 import { PgToggleValueRepository } from "../persistence/PgToggleValueRepository.js";
+import { PgUserRepository } from "../persistence/PgUserRepository.js";
 import { CreateApp } from "../../application/CreateApp.js";
 import { ListApps } from "../../application/ListApps.js";
 import { GetApp } from "../../application/GetApp.js";
@@ -19,10 +20,13 @@ import { CreateFeatureToggle } from "../../application/CreateFeatureToggle.js";
 import { ListToggles } from "../../application/ListToggles.js";
 import { SetToggleValue } from "../../application/SetToggleValue.js";
 import { GetPublicToggles } from "../../application/GetPublicToggles.js";
+import { Login } from "../../application/Login.js";
 import { publicRoutes } from "./routes/publicRoutes.js";
 import { appRoutes } from "./routes/appRoutes.js";
 import { environmentRoutes } from "./routes/environmentRoutes.js";
 import { toggleRoutes } from "./routes/toggleRoutes.js";
+import { authRoutes } from "./routes/authRoutes.js";
+import { createAuthMiddleware } from "./middleware/authMiddleware.js";
 
 export function createExpressApp(
   pool: pg.Pool,
@@ -39,6 +43,7 @@ export function createExpressApp(
   const environmentRepository = new PgEnvironmentRepository(pool);
   const toggleRepository = new PgFeatureToggleRepository(pool);
   const toggleValueRepository = new PgToggleValueRepository(pool);
+  const userRepository = new PgUserRepository(pool);
 
   // Use cases
   const createAppUseCase = new CreateApp(appRepository);
@@ -66,19 +71,18 @@ export function createExpressApp(
     toggleValueRepository,
     cache
   );
+  const login = new Login(userRepository, config.jwt.secret);
+
+  // Auth middleware
+  const auth = createAuthMiddleware(config.jwt.secret);
 
   // Swagger
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
-  // Routes
+  // Public routes (no auth)
   app.use("/api/public", publicRoutes(getPublicToggles));
-  app.use("/api/apps", appRoutes(createAppUseCase, listApps, getApp));
-  app.use(
-    "/api",
-    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache)
-  );
-  app.use("/api", toggleRoutes(createToggle, setToggleValue, listToggles));
+  app.use("/api/auth", authRoutes(login, config.jwt.secret));
 
   /**
    * @openapi
@@ -101,6 +105,15 @@ export function createExpressApp(
   app.get("/api/health", (_req, res) => {
     res.json({ status: "ok" });
   });
+
+  // Protected routes (require auth)
+  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
+  app.use(
+    "/api",
+    auth,
+    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache)
+  );
+  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles));
 
   return app;
 }

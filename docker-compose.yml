@@ -41,6 +41,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       CORS_ORIGIN: "http://localhost:5173"
+      JWT_SECRET: "semaforo-dev-secret"
     volumes:
       - ./packages/domain/src:/app/packages/domain/src
       - ./apps/api/src:/app/apps/api/src

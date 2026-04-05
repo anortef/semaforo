@@ -14,6 +14,9 @@ export interface Config {
   cors: {
     origin: string;
   };
+  jwt: {
+    secret: string;
+  };
 }
 
 export function loadConfig(): Config {
@@ -32,6 +35,9 @@ export function loadConfig(): Config {
     },
     cors: {
       origin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+    },
+    jwt: {
+      secret: process.env.JWT_SECRET ?? "semaforo-dev-secret",
     },
   };
 }

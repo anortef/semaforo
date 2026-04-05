@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
-import request from "supertest";
+import supertest from "supertest";
 import type pg from "pg";
 import type { Express } from "express";
-import { createTestPool, createTestApp, cleanDatabase } from "../../../test/setup.js";
+import { createTestPool, createTestApp, cleanDatabase, seedTestAdmin } from "../../../test/setup.js";
 
 describe("Public Routes (integration)", () => {
   let pool: pg.Pool;
   let app: Express;
+  let token: string;
 
   beforeAll(async () => {
     pool = createTestPool();
@@ -17,39 +18,44 @@ describe("Public Routes (integration)", () => {
     await pool.end();
   });
 
+  function auth(req: supertest.Test): supertest.Test {
+    return req.set("Authorization", `Bearer ${token}`);
+  }
+
   beforeEach(async () => {
     await cleanDatabase(pool);
+    await seedTestAdmin(pool);
+    const loginRes = await supertest(app)
+      .post("/api/auth/login")
+      .send({ email: "admin@semaforo.local", password: "admin" });
+    token = loginRes.body.token;
   });
 
   describe("GET /api/public/apps/:appKey/environments/:envKey/toggles", () => {
     it("returns toggle map for an app environment", async () => {
-      // Create app
-      const appRes = await request(app)
-        .post("/api/apps")
-        .send({ name: "Shop", key: "shop" });
+      const appRes = await auth(
+        supertest(app).post("/api/apps")
+      ).send({ name: "Shop", key: "shop" });
       const appId = appRes.body.id.value;
 
-      // Create environment
-      const envRes = await request(app)
-        .post(`/api/apps/${appId}/environments`)
-        .send({ name: "Production", key: "prod" });
+      const envRes = await auth(
+        supertest(app).post(`/api/apps/${appId}/environments`)
+      ).send({ name: "Production", key: "prod" });
       const envId = envRes.body.id.value;
 
-      // Create toggles
-      const t1 = await request(app)
-        .post(`/api/apps/${appId}/toggles`)
-        .send({ name: "New Checkout", key: "newCheckout" });
-      const t2 = await request(app)
-        .post(`/api/apps/${appId}/toggles`)
-        .send({ name: "Beta Search", key: "betaSearch" });
+      const t1 = await auth(
+        supertest(app).post(`/api/apps/${appId}/toggles`)
+      ).send({ name: "New Checkout", key: "newCheckout" });
+      const t2 = await auth(
+        supertest(app).post(`/api/apps/${appId}/toggles`)
+      ).send({ name: "Beta Search", key: "betaSearch" });
 
-      // Enable only newCheckout in prod
-      await request(app)
-        .put(`/api/toggles/${t1.body.id.value}/environments/${envId}`)
-        .send({ enabled: true });
+      await auth(
+        supertest(app).put(`/api/toggles/${t1.body.id.value}/environments/${envId}`)
+      ).send({ enabled: true });
 
-      // Fetch public endpoint
-      const res = await request(app).get(
+      // Public endpoint — no auth needed
+      const res = await supertest(app).get(
         "/api/public/apps/shop/environments/prod/toggles"
       );
 
@@ -61,19 +67,19 @@ describe("Public Routes (integration)", () => {
     });
 
     it("returns all false for toggles with no values set", async () => {
-      const appRes = await request(app)
-        .post("/api/apps")
-        .send({ name: "Shop", key: "shop" });
+      const appRes = await auth(
+        supertest(app).post("/api/apps")
+      ).send({ name: "Shop", key: "shop" });
       const appId = appRes.body.id.value;
 
-      await request(app)
-        .post(`/api/apps/${appId}/environments`)
-        .send({ name: "Dev", key: "dev" });
-      await request(app)
-        .post(`/api/apps/${appId}/toggles`)
-        .send({ name: "Feature A", key: "featureA" });
+      await auth(
+        supertest(app).post(`/api/apps/${appId}/environments`)
+      ).send({ name: "Dev", key: "dev" });
+      await auth(
+        supertest(app).post(`/api/apps/${appId}/toggles`)
+      ).send({ name: "Feature A", key: "featureA" });
 
-      const res = await request(app).get(
+      const res = await supertest(app).get(
         "/api/public/apps/shop/environments/dev/toggles"
       );
 
@@ -82,14 +88,14 @@ describe("Public Routes (integration)", () => {
     });
 
     it("returns empty object when no toggles exist", async () => {
-      const appRes = await request(app)
-        .post("/api/apps")
-        .send({ name: "Shop", key: "shop" });
-      await request(app)
-        .post(`/api/apps/${appRes.body.id.value}/environments`)
-        .send({ name: "Dev", key: "dev" });
+      const appRes = await auth(
+        supertest(app).post("/api/apps")
+      ).send({ name: "Shop", key: "shop" });
+      await auth(
+        supertest(app).post(`/api/apps/${appRes.body.id.value}/environments`)
+      ).send({ name: "Dev", key: "dev" });
 
-      const res = await request(app).get(
+      const res = await supertest(app).get(
         "/api/public/apps/shop/environments/dev/toggles"
       );
 
@@ -98,7 +104,7 @@ describe("Public Routes (integration)", () => {
     });
 
     it("returns 404 for non-existent app", async () => {
-      const res = await request(app).get(
+      const res = await supertest(app).get(
         "/api/public/apps/nope/environments/prod/toggles"
       );
 
@@ -106,11 +112,11 @@ describe("Public Routes (integration)", () => {
     });
 
     it("returns 404 for non-existent environment", async () => {
-      await request(app)
-        .post("/api/apps")
-        .send({ name: "Shop", key: "shop" });
+      await auth(
+        supertest(app).post("/api/apps")
+      ).send({ name: "Shop", key: "shop" });
 
-      const res = await request(app).get(
+      const res = await supertest(app).get(
         "/api/public/apps/shop/environments/nope/toggles"
       );
 
@@ -118,33 +124,32 @@ describe("Public Routes (integration)", () => {
     });
 
     it("returns different values per environment", async () => {
-      const appRes = await request(app)
-        .post("/api/apps")
-        .send({ name: "Shop", key: "shop" });
+      const appRes = await auth(
+        supertest(app).post("/api/apps")
+      ).send({ name: "Shop", key: "shop" });
       const appId = appRes.body.id.value;
 
-      const devEnv = await request(app)
-        .post(`/api/apps/${appId}/environments`)
-        .send({ name: "Dev", key: "dev" });
-      const prodEnv = await request(app)
-        .post(`/api/apps/${appId}/environments`)
-        .send({ name: "Prod", key: "prod" });
+      const devEnv = await auth(
+        supertest(app).post(`/api/apps/${appId}/environments`)
+      ).send({ name: "Dev", key: "dev" });
+      const prodEnv = await auth(
+        supertest(app).post(`/api/apps/${appId}/environments`)
+      ).send({ name: "Prod", key: "prod" });
 
-      const toggle = await request(app)
-        .post(`/api/apps/${appId}/toggles`)
-        .send({ name: "New Checkout", key: "newCheckout" });
+      const toggle = await auth(
+        supertest(app).post(`/api/apps/${appId}/toggles`)
+      ).send({ name: "New Checkout", key: "newCheckout" });
 
-      // Enable in dev, leave disabled in prod
-      await request(app)
-        .put(
+      await auth(
+        supertest(app).put(
           `/api/toggles/${toggle.body.id.value}/environments/${devEnv.body.id.value}`
         )
-        .send({ enabled: true });
+      ).send({ enabled: true });
 
-      const devRes = await request(app).get(
+      const devRes = await supertest(app).get(
         "/api/public/apps/shop/environments/dev/toggles"
       );
-      const prodRes = await request(app).get(
+      const prodRes = await supertest(app).get(
         "/api/public/apps/shop/environments/prod/toggles"
       );
 
