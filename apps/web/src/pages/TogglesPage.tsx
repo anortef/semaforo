@@ -167,7 +167,7 @@ export function TogglesPage() {
         <div className="card api-info-card">
           <div className="card-title">API Endpoint</div>
           <p className="api-info-desc">
-            Use this endpoint to fetch toggle values for your application.
+            Use this endpoint to fetch toggle values for your application. The API key determines the environment.
           </p>
 
           <div className="api-info-env-selector">
@@ -187,21 +187,22 @@ export function TogglesPage() {
 
           <div className="api-info-method">
             <span className="api-method-badge">GET</span>
-            <code className="api-url">{apiBaseUrl}{apiEndpoint}</code>
+            <code className="api-url">{apiBaseUrl}/api/public/toggles</code>
           </div>
 
           <div className="api-info-curl">
-            <div className="api-info-curl-label">cURL</div>
+            <div className="api-info-curl-label">Simple (recommended)</div>
             <pre className="api-code-block">
-              <code>{`curl ${apiBaseUrl}${apiEndpoint} \\
+              <code>{`curl ${apiBaseUrl}/api/public/toggles \\
   -H "x-api-key: ${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
             </pre>
           </div>
 
           <div className="api-info-curl">
-            <div className="api-info-curl-label">Or via query parameter</div>
+            <div className="api-info-curl-label">Full path (alternative)</div>
             <pre className="api-code-block">
-              <code>{`curl "${apiBaseUrl}${apiEndpoint}?apiKey=${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
+              <code>{`curl ${apiBaseUrl}${apiEndpoint} \\
+  -H "x-api-key: ${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
             </pre>
           </div>
 

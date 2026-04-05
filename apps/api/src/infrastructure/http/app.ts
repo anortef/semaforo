@@ -93,7 +93,7 @@ export function createExpressApp(
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
   // Public routes (API key required)
-  app.use("/api/public", apiKeyAuth, publicRoutes(getPublicToggles));
+  app.use("/api/public", apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository));
 
   // Auth routes (no auth)
   app.use("/api/auth", authRoutes(login, config.jwt.secret));

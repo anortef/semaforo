@@ -33,24 +33,20 @@ A default admin user is created on first startup:
 
 ## Public API
 
-Client applications consume toggles via:
-
-```
-GET /api/public/apps/:appKey/environments/:envKey/toggles
-```
-
-An API key is required. Pass it via header or query parameter:
+The simplest way to fetch toggles — the API key determines the environment:
 
 ```bash
-# Via header
-curl /api/public/apps/my-app/environments/prod/toggles \
-  -H "x-api-key: sk_your_key_here"
-
-# Via query parameter
-curl "/api/public/apps/my-app/environments/prod/toggles?apiKey=sk_your_key_here"
+curl /api/public/toggles -H "x-api-key: sk_your_key_here"
 ```
 
-API keys are managed per app in the web UI or via the API (`POST /api/apps/:appId/api-keys`).
+Or use the full path if preferred:
+
+```bash
+curl /api/public/apps/my-app/environments/prod/toggles \
+  -H "x-api-key: sk_your_key_here"
+```
+
+API keys can also be passed via `?apiKey=` query parameter. Keys are managed per environment in the web UI.
 
 Response:
 ```json
@@ -130,4 +126,5 @@ docs/           Architecture and domain documentation
 | GET | `/api/apps/:appId/api-keys` | List API keys |
 | POST | `/api/apps/:appId/api-keys` | Create API key |
 | DELETE | `/api/api-keys/:keyId` | Delete API key |
-| GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Public toggle endpoint (requires API key) |
+| GET | `/api/public/toggles` | Public toggles via API key only |
+| GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Public toggles with full path |

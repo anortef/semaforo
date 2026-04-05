@@ -1,8 +1,72 @@
 import { Router } from "express";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
+import type { EnvironmentRepository, AppRepository } from "@semaforo/domain";
 
-export function publicRoutes(getPublicToggles: GetPublicToggles): Router {
+export function publicRoutes(
+  getPublicToggles: GetPublicToggles,
+  environmentRepository?: EnvironmentRepository,
+  appRepository?: AppRepository
+): Router {
   const router = Router();
+
+  /**
+   * @openapi
+   * /public/toggles:
+   *   get:
+   *     tags: [Public]
+   *     summary: Get toggle states using only the API key
+   *     description: Returns toggle states for the environment associated with the API key. No need to know app or environment keys.
+   *     parameters:
+   *       - in: header
+   *         name: x-api-key
+   *         required: true
+   *         schema:
+   *           type: string
+   *       - in: query
+   *         name: apiKey
+   *         schema:
+   *           type: string
+   *         description: Alternative to x-api-key header
+   *     responses:
+   *       200:
+   *         description: Toggle states map
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               additionalProperties:
+   *                 type: boolean
+   *       404:
+   *         description: Environment or app not found
+   */
+  if (environmentRepository && appRepository) {
+    router.get("/toggles", async (_req, res) => {
+      try {
+        const environmentId = res.locals.apiKeyEnvironmentId as string;
+        const env = await environmentRepository.findById(environmentId);
+        if (!env) {
+          res.status(404).json({ error: "Environment not found" });
+          return;
+        }
+
+        const app = await appRepository.findById(env.appId);
+        if (!app) {
+          res.status(404).json({ error: "App not found" });
+          return;
+        }
+
+        const toggles = await getPublicToggles.execute({
+          appKey: app.key,
+          envKey: env.key,
+        });
+        res.json(toggles);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Internal server error";
+        res.status(500).json({ error: message });
+      }
+    });
+  }
 
   /**
    * @openapi

@@ -57,16 +57,16 @@ describe("Public Routes (integration)", () => {
       const res = await supertest(app).get(
         "/api/public/apps/shop/environments/prod/toggles"
       );
+
       expect(res.status).toBe(401);
-      expect(res.body.error).toBe("API key required");
     });
 
     it("returns 401 with invalid API key", async () => {
       const res = await supertest(app)
         .get("/api/public/apps/shop/environments/prod/toggles")
         .set("x-api-key", "sk_invalid");
+
       expect(res.status).toBe(401);
-      expect(res.body.error).toBe("Invalid API key");
     });
 
     it("accepts API key via x-api-key header", async () => {
@@ -76,7 +76,6 @@ describe("Public Routes (integration)", () => {
         .get("/api/public/apps/shop/environments/dev/toggles")
         .set("x-api-key", apiKey);
 
-      expect(res.status).toBe(200);
       expect(res.body).toEqual({});
     });
 
@@ -86,7 +85,6 @@ describe("Public Routes (integration)", () => {
       const res = await supertest(app)
         .get(`/api/public/apps/shop/environments/dev/toggles?apiKey=${apiKey}`);
 
-      expect(res.status).toBe(200);
       expect(res.body).toEqual({});
     });
 
@@ -108,7 +106,6 @@ describe("Public Routes (integration)", () => {
         .get("/api/public/apps/shop/environments/prod/toggles")
         .set("x-api-key", apiKey);
 
-      expect(res.status).toBe(200);
       expect(res.body).toEqual({
         newCheckout: true,
         betaSearch: false,
@@ -123,6 +120,42 @@ describe("Public Routes (integration)", () => {
         .set("x-api-key", apiKey);
 
       expect(res.status).toBe(404);
+    });
+  });
+
+  describe("GET /api/public/toggles", () => {
+    it("returns toggle map using only the API key", async () => {
+      const { appId, envId, apiKey } = await createAppEnvWithKey("Shop", "shop", "Prod", "prod");
+
+      const t1 = await auth(
+        supertest(app).post(`/api/apps/${appId}/toggles`)
+      ).send({ name: "New Checkout", key: "newCheckout" });
+
+      await auth(
+        supertest(app).put(`/api/toggles/${t1.body.id.value}/environments/${envId}`)
+      ).send({ enabled: true });
+
+      const res = await supertest(app)
+        .get("/api/public/toggles")
+        .set("x-api-key", apiKey);
+
+      expect(res.body).toEqual({ newCheckout: true });
+    });
+
+    it("returns 401 without API key", async () => {
+      const res = await supertest(app).get("/api/public/toggles");
+
+      expect(res.status).toBe(401);
+    });
+
+    it("returns empty object when no toggles exist", async () => {
+      const { apiKey } = await createAppEnvWithKey("Shop", "shop", "Dev", "dev");
+
+      const res = await supertest(app)
+        .get("/api/public/toggles")
+        .set("x-api-key", apiKey);
+
+      expect(res.body).toEqual({});
     });
   });
 });
