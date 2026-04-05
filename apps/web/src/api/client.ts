@@ -79,6 +79,15 @@ export interface ApiKeyDTO {
   key: string;
 }
 
+export interface AppMemberDTO {
+  id: { value: string };
+  appId: string;
+  userId: string;
+  role: string;
+  email: string;
+  name: string;
+}
+
 export interface AdminUserDTO {
   id: { value: string };
   email: string;
@@ -176,6 +185,19 @@ export const api = {
           body: JSON.stringify({ enabled }),
         }
       ),
+  },
+  members: {
+    list: (appId: string) =>
+      request<AppMemberDTO[]>(`/apps/${appId}/members`),
+    add: (appId: string, userId: string, role: string) =>
+      request<AppMemberDTO>(`/apps/${appId}/members`, {
+        method: "POST",
+        body: JSON.stringify({ userId, role }),
+      }),
+    remove: (appId: string, memberId: string) =>
+      request<void>(`/apps/${appId}/members/${memberId}`, {
+        method: "DELETE",
+      }),
   },
   apiKeys: {
     list: (environmentId: string) =>

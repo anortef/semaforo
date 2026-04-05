@@ -70,6 +70,14 @@ const MIGRATIONS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id)`,
+  `CREATE TABLE IF NOT EXISTS app_members (
+    id TEXT PRIMARY KEY,
+    app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'viewer',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(app_id, user_id)
+  )`,
 ];
 
 async function migrate() {

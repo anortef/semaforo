@@ -7,6 +7,7 @@ import { AppsPage } from "./pages/AppsPage.js";
 import { TogglesPage } from "./pages/TogglesPage.js";
 import { EnvironmentsPage } from "./pages/EnvironmentsPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
+import { AppSettingsPage } from "./pages/AppSettingsPage.js";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage.js";
 import { AdminSettingsPage } from "./pages/admin/AdminSettingsPage.js";
 import { AdminAuditLogPage } from "./pages/admin/AdminAuditLogPage.js";
@@ -29,6 +30,7 @@ function ProtectedRoutes() {
         <Route path="/" element={<AppsPage />} />
         <Route path="/apps/:appId/toggles" element={<TogglesPage />} />
         <Route path="/apps/:appId/environments" element={<EnvironmentsPage />} />
+        <Route path="/apps/:appId/settings" element={<AppSettingsPage />} />
         <Route path="/apps/:appId" element={<Navigate to="toggles" replace />} />
         <Route path="/admin" element={<AdminGuard />}>
           <Route index element={<Navigate to="users" replace />} />

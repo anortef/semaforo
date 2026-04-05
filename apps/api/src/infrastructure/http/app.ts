@@ -35,14 +35,19 @@ import { AdminListSystemSettings } from "../../application/admin/ListSystemSetti
 import { AdminUpdateSystemSetting } from "../../application/admin/UpdateSystemSetting.js";
 import { AdminListAuditLog } from "../../application/admin/ListAuditLog.js";
 import { RecordAuditEvent } from "../../application/admin/RecordAuditEvent.js";
+import { PgAppMemberRepository } from "../persistence/PgAppMemberRepository.js";
 import { PgSystemSettingRepository } from "../persistence/PgSystemSettingRepository.js";
 import { PgAuditLogRepository } from "../persistence/PgAuditLogRepository.js";
+import { AddAppMember } from "../../application/AddAppMember.js";
+import { RemoveAppMember } from "../../application/RemoveAppMember.js";
+import { ListAppMembers } from "../../application/ListAppMembers.js";
 import { publicRoutes } from "./routes/publicRoutes.js";
 import { appRoutes } from "./routes/appRoutes.js";
 import { environmentRoutes } from "./routes/environmentRoutes.js";
 import { toggleRoutes } from "./routes/toggleRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { apiKeyRoutes } from "./routes/apiKeyRoutes.js";
+import { appMemberRoutes } from "./routes/appMemberRoutes.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
 import { createAuthMiddleware } from "./middleware/authMiddleware.js";
 import { createAdminMiddleware } from "./middleware/adminMiddleware.js";
@@ -68,6 +73,7 @@ export function createExpressApp(
   const toggleValueRepository = new PgToggleValueRepository(pool);
   const userRepository = new PgUserRepository(pool);
   const apiKeyRepository = new PgApiKeyRepository(pool);
+  const appMemberRepository = new PgAppMemberRepository(pool);
   const systemSettingRepository = new PgSystemSettingRepository(pool);
   const auditLogRepository = new PgAuditLogRepository(pool);
 
@@ -102,6 +108,9 @@ export function createExpressApp(
   const createApiKeyUseCase = new CreateApiKey(apiKeyRepository, environmentRepository);
   const listApiKeysUseCase = new ListApiKeys(apiKeyRepository);
   const deleteApiKeyUseCase = new DeleteApiKey(apiKeyRepository);
+  const addAppMember = new AddAppMember(appMemberRepository);
+  const removeAppMember = new RemoveAppMember(appMemberRepository);
+  const listAppMembersUseCase = new ListAppMembers(appMemberRepository);
 
   // Admin use cases
   const adminCreateUser = new AdminCreateUser(userRepository);
@@ -170,6 +179,7 @@ export function createExpressApp(
 
   // Protected routes (require JWT auth)
   app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
+  app.use("/api/apps", auth, appMemberRoutes(addAppMember, removeAppMember, listAppMembersUseCase, userRepository));
   app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use(
