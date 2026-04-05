@@ -1,7 +1,7 @@
 import { Router } from "express";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
 import type { EnvironmentRepository, AppRepository } from "@semaforo/domain";
-import type { ToggleCache } from "../../cache/RedisToggleCache.js";
+import type { ToggleCache, RequestCounter } from "../../cache/RedisToggleCache.js";
 
 function extractApiKey(req: { headers: Record<string, unknown> }): string {
   const header = req.headers["x-api-key"];
@@ -13,7 +13,8 @@ export function publicRoutes(
   getPublicToggles: GetPublicToggles,
   environmentRepository?: EnvironmentRepository,
   appRepository?: AppRepository,
-  cache?: ToggleCache
+  cache?: ToggleCache,
+  requestCounter?: RequestCounter
 ): Router {
   const router = Router();
 
@@ -51,6 +52,9 @@ export function publicRoutes(
     router.get("/toggles", async (req, res) => {
       try {
         const apiKeyValue = extractApiKey(req);
+        const environmentId = res.locals.apiKeyEnvironmentId as string;
+
+        requestCounter?.increment(environmentId);
 
         if (cache) {
           const cached = await cache.getByApiKey(apiKeyValue);
@@ -60,7 +64,6 @@ export function publicRoutes(
           }
         }
 
-        const environmentId = res.locals.apiKeyEnvironmentId as string;
         const env = await environmentRepository.findById(environmentId);
         if (!env) {
           res.status(404).json({ error: "Environment not found" });
@@ -83,9 +86,7 @@ export function publicRoutes(
         }
 
         res.json(toggles);
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Internal server error";
+      } catch {
         res.status(500).json({ error: "Internal server error" });
       }
     });
@@ -134,6 +135,9 @@ export function publicRoutes(
     "/apps/:appKey/environments/:envKey/toggles",
     async (req, res) => {
       try {
+        const environmentId = res.locals.apiKeyEnvironmentId as string;
+        if (environmentId) requestCounter?.increment(environmentId);
+
         const toggles = await getPublicToggles.execute({
           appKey: req.params.appKey,
           envKey: req.params.envKey,

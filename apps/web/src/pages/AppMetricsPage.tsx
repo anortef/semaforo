@@ -15,6 +15,12 @@ function formatTtl(seconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+}
+
 export function AppMetricsPage() {
   const { appId } = useParams<{ appId: string }>();
   const [app, setApp] = useState<AppDTO | null>(null);
@@ -62,16 +68,17 @@ export function AppMetricsPage() {
             </div>
           </div>
 
-          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card">
+            <div className="card-title">Cache</div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th style={{ paddingLeft: "1.25rem" }}>Environment</th>
                     <th>Configured TTL</th>
-                    <th>Cache Status</th>
-                    <th>Cache Size</th>
-                    <th>Remaining TTL</th>
+                    <th>Status</th>
+                    <th>Size</th>
+                    <th>Remaining</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -95,6 +102,41 @@ export function AppMetricsPage() {
                       </td>
                       <td>{env.cache ? formatBytes(env.cache.sizeBytes) : "—"}</td>
                       <td>{env.cache ? formatTtl(env.cache.remainingTtl) : "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="card" style={{ marginTop: "1rem" }}>
+            <div className="card-title">Requests</div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ paddingLeft: "1.25rem" }}>Environment</th>
+                    <th style={{ textAlign: "right" }}>Unflushed</th>
+                    <th style={{ textAlign: "right" }}>5 min</th>
+                    <th style={{ textAlign: "right" }}>1 hour</th>
+                    <th style={{ textAlign: "right" }}>1 day</th>
+                    <th style={{ textAlign: "right" }}>1 week</th>
+                    <th style={{ textAlign: "right" }}>1 month</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.environments.map((env) => (
+                    <tr key={env.id}>
+                      <td style={{ paddingLeft: "1.25rem" }}>
+                        <div style={{ fontWeight: 500 }}>{env.name}</div>
+                        <span className="badge badge-key">{env.key}</span>
+                      </td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace" }}>{formatCount(env.requests.current)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace" }}>{formatCount(env.requests.last5m)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace" }}>{formatCount(env.requests.last1h)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace" }}>{formatCount(env.requests.last1d)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace" }}>{formatCount(env.requests.last1w)}</td>
+                      <td style={{ textAlign: "right", fontFamily: "monospace" }}>{formatCount(env.requests.last1mo)}</td>
                     </tr>
                   ))}
                 </tbody>

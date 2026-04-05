@@ -78,6 +78,14 @@ const MIGRATIONS = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(app_id, user_id)
   )`,
+  `CREATE TABLE IF NOT EXISTS request_counts (
+    id TEXT PRIMARY KEY,
+    environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+    count INTEGER NOT NULL,
+    window_start TIMESTAMPTZ NOT NULL,
+    window_end TIMESTAMPTZ NOT NULL
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_request_counts_env_window ON request_counts(environment_id, window_end DESC)`,
 ];
 
 async function migrate() {

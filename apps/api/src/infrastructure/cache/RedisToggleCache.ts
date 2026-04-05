@@ -87,6 +87,43 @@ export class RedisToggleCache implements ToggleCache {
   }
 }
 
+export interface RequestCounter {
+  increment(environmentId: string): Promise<void>;
+  getAndReset(environmentId: string): Promise<number>;
+  getAllEnvironmentIds(): Promise<string[]>;
+  getCurrentCount(environmentId: string): Promise<number>;
+}
+
+export class RedisRequestCounter implements RequestCounter {
+  constructor(private redis: Redis) {}
+
+  async increment(environmentId: string): Promise<void> {
+    await this.redis.incr(`requests:${environmentId}`);
+  }
+
+  async getAndReset(environmentId: string): Promise<number> {
+    const val = await this.redis.getset(`requests:${environmentId}`, "0");
+    return parseInt(val ?? "0", 10);
+  }
+
+  async getAllEnvironmentIds(): Promise<string[]> {
+    const keys = await this.redis.keys("requests:*");
+    return keys.map((k) => k.replace("requests:", ""));
+  }
+
+  async getCurrentCount(environmentId: string): Promise<number> {
+    const val = await this.redis.get(`requests:${environmentId}`);
+    return parseInt(val ?? "0", 10);
+  }
+}
+
+export class NoOpRequestCounter implements RequestCounter {
+  async increment(): Promise<void> {}
+  async getAndReset(): Promise<number> { return 0; }
+  async getAllEnvironmentIds(): Promise<string[]> { return []; }
+  async getCurrentCount(): Promise<number> { return 0; }
+}
+
 export class NoOpToggleCache implements ToggleCache {
   async get(): Promise<null> {
     return null;

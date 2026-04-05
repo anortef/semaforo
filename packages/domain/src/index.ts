@@ -28,6 +28,9 @@ export type { AuditLogEntry, AuditLogEntryId } from "./entities/AuditLogEntry.js
 export { createAppMember } from "./entities/AppMember.js";
 export type { AppMember, AppMemberId, AppMemberRole } from "./entities/AppMember.js";
 
+export { createRequestCount } from "./entities/RequestCount.js";
+export type { RequestCount, RequestCountId } from "./entities/RequestCount.js";
+
 export type { AppRepository } from "./repositories/AppRepository.js";
 export type { EnvironmentRepository } from "./repositories/EnvironmentRepository.js";
 export type { FeatureToggleRepository } from "./repositories/FeatureToggleRepository.js";
@@ -37,3 +40,4 @@ export type { ApiKeyRepository } from "./repositories/ApiKeyRepository.js";
 export type { SystemSettingRepository } from "./repositories/SystemSettingRepository.js";
 export type { AuditLogRepository } from "./repositories/AuditLogRepository.js";
 export type { AppMemberRepository } from "./repositories/AppMemberRepository.js";
+export type { RequestCountRepository } from "./repositories/RequestCountRepository.js";

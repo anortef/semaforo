@@ -114,12 +114,22 @@ export interface AuditLogEntryDTO {
   createdAt: string;
 }
 
+export interface RequestMetricsDTO {
+  current: number;
+  last5m: number;
+  last1h: number;
+  last1d: number;
+  last1w: number;
+  last1mo: number;
+}
+
 export interface EnvironmentMetricsDTO {
   id: string;
   name: string;
   key: string;
   cacheTtlSeconds: number;
   cache: { sizeBytes: number; remainingTtl: number } | null;
+  requests: RequestMetricsDTO;
 }
 
 export interface AppMetricsDTO {

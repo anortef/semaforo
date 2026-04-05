@@ -24,6 +24,7 @@ export function createTestApp(pool: pg.Pool) {
 }
 
 export async function cleanDatabase(pool: pg.Pool) {
+  await pool.query("DELETE FROM request_counts");
   await pool.query("DELETE FROM audit_log");
   await pool.query("DELETE FROM system_settings");
   await pool.query("DELETE FROM app_members");

@@ -12,6 +12,7 @@ import { PgFeatureToggleRepository } from "../persistence/PgFeatureToggleReposit
 import { PgToggleValueRepository } from "../persistence/PgToggleValueRepository.js";
 import { PgUserRepository } from "../persistence/PgUserRepository.js";
 import { PgApiKeyRepository } from "../persistence/PgApiKeyRepository.js";
+import { PgRequestCountRepository } from "../persistence/PgRequestCountRepository.js";
 import { CreateApp } from "../../application/CreateApp.js";
 import { ListApps } from "../../application/ListApps.js";
 import { GetApp } from "../../application/GetApp.js";
@@ -55,11 +56,13 @@ import { createAdminMiddleware } from "./middleware/adminMiddleware.js";
 import { createApiKeyMiddleware } from "./middleware/apiKeyMiddleware.js";
 import { createLoginLimiter, createPublicLimiter } from "./middleware/rateLimiter.js";
 import { createSecurityLogger } from "../logging/securityLogger.js";
+import type { RequestCounter } from "../cache/RedisToggleCache.js";
 
 export function createExpressApp(
   pool: pg.Pool,
   config: Config,
-  cache: ToggleCache
+  cache: ToggleCache,
+  requestCounter?: RequestCounter
 ) {
   const app = express();
 
@@ -82,7 +85,8 @@ export function createExpressApp(
   const createAppUseCase = new CreateApp(appRepository);
   const listApps = new ListApps(appRepository);
   const getApp = new GetApp(appRepository);
-  const getAppMetrics = new GetAppMetrics(appRepository, environmentRepository, toggleRepository, cache);
+  const requestCountRepository = new PgRequestCountRepository(pool);
+  const getAppMetrics = new GetAppMetrics(appRepository, environmentRepository, toggleRepository, cache, requestCounter, requestCountRepository);
   const createEnvironment = new CreateEnvironment(
     appRepository,
     environmentRepository,
@@ -138,7 +142,7 @@ export function createExpressApp(
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
   // Public routes (API key required, rate limited)
-  app.use("/api/public", createPublicLimiter(), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache));
+  app.use("/api/public", createPublicLimiter(), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter));
 
   // Auth routes (login rate limited)
   app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwt.secret, securityLogger));
