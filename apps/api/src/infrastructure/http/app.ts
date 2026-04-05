@@ -10,6 +10,7 @@ import { PgEnvironmentRepository } from "../persistence/PgEnvironmentRepository.
 import { PgFeatureToggleRepository } from "../persistence/PgFeatureToggleRepository.js";
 import { PgToggleValueRepository } from "../persistence/PgToggleValueRepository.js";
 import { PgUserRepository } from "../persistence/PgUserRepository.js";
+import { PgApiKeyRepository } from "../persistence/PgApiKeyRepository.js";
 import { CreateApp } from "../../application/CreateApp.js";
 import { ListApps } from "../../application/ListApps.js";
 import { GetApp } from "../../application/GetApp.js";
@@ -21,12 +22,17 @@ import { ListToggles } from "../../application/ListToggles.js";
 import { SetToggleValue } from "../../application/SetToggleValue.js";
 import { GetPublicToggles } from "../../application/GetPublicToggles.js";
 import { Login } from "../../application/Login.js";
+import { CreateApiKey } from "../../application/CreateApiKey.js";
+import { ListApiKeys } from "../../application/ListApiKeys.js";
+import { DeleteApiKey } from "../../application/DeleteApiKey.js";
 import { publicRoutes } from "./routes/publicRoutes.js";
 import { appRoutes } from "./routes/appRoutes.js";
 import { environmentRoutes } from "./routes/environmentRoutes.js";
 import { toggleRoutes } from "./routes/toggleRoutes.js";
 import { authRoutes } from "./routes/authRoutes.js";
+import { apiKeyRoutes } from "./routes/apiKeyRoutes.js";
 import { createAuthMiddleware } from "./middleware/authMiddleware.js";
+import { createApiKeyMiddleware } from "./middleware/apiKeyMiddleware.js";
 
 export function createExpressApp(
   pool: pg.Pool,
@@ -44,6 +50,7 @@ export function createExpressApp(
   const toggleRepository = new PgFeatureToggleRepository(pool);
   const toggleValueRepository = new PgToggleValueRepository(pool);
   const userRepository = new PgUserRepository(pool);
+  const apiKeyRepository = new PgApiKeyRepository(pool);
 
   // Use cases
   const createAppUseCase = new CreateApp(appRepository);
@@ -72,16 +79,22 @@ export function createExpressApp(
     cache
   );
   const login = new Login(userRepository, config.jwt.secret);
+  const createApiKeyUseCase = new CreateApiKey(apiKeyRepository, appRepository);
+  const listApiKeysUseCase = new ListApiKeys(apiKeyRepository);
+  const deleteApiKeyUseCase = new DeleteApiKey(apiKeyRepository);
 
-  // Auth middleware
+  // Middleware
   const auth = createAuthMiddleware(config.jwt.secret);
+  const apiKeyAuth = createApiKeyMiddleware(apiKeyRepository);
 
   // Swagger
   app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
-  // Public routes (no auth)
-  app.use("/api/public", publicRoutes(getPublicToggles));
+  // Public routes (API key required)
+  app.use("/api/public", apiKeyAuth, publicRoutes(getPublicToggles));
+
+  // Auth routes (no auth)
   app.use("/api/auth", authRoutes(login, config.jwt.secret));
 
   /**
@@ -106,14 +119,16 @@ export function createExpressApp(
     res.json({ status: "ok" });
   });
 
-  // Protected routes (require auth)
+  // Protected routes (require JWT auth)
   app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp));
+  app.use("/api/apps", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
+  app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase));
   app.use(
     "/api",
     auth,
     environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache)
   );
-  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles));
+  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles));
 
   return app;
 }

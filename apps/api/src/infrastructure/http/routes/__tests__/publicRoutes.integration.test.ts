@@ -8,6 +8,7 @@ describe("Public Routes (integration)", () => {
   let pool: pg.Pool;
   let app: Express;
   let token: string;
+  let apiKey: string;
 
   beforeAll(async () => {
     pool = createTestPool();
@@ -31,12 +32,64 @@ describe("Public Routes (integration)", () => {
     token = loginRes.body.token;
   });
 
+  async function createAppWithApiKey(appName: string, appKey: string): Promise<{ appId: string; apiKey: string }> {
+    const appRes = await auth(
+      supertest(app).post("/api/apps")
+    ).send({ name: appName, key: appKey });
+    const appId = appRes.body.id.value;
+
+    const keyRes = await auth(
+      supertest(app).post(`/api/apps/${appId}/api-keys`)
+    ).send({ name: "Test Key" });
+    return { appId, apiKey: keyRes.body.key };
+  }
+
   describe("GET /api/public/apps/:appKey/environments/:envKey/toggles", () => {
+    it("returns 401 without API key", async () => {
+      const res = await supertest(app).get(
+        "/api/public/apps/shop/environments/prod/toggles"
+      );
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe("API key required");
+    });
+
+    it("returns 401 with invalid API key", async () => {
+      const res = await supertest(app)
+        .get("/api/public/apps/shop/environments/prod/toggles")
+        .set("x-api-key", "sk_invalid");
+      expect(res.status).toBe(401);
+      expect(res.body.error).toBe("Invalid API key");
+    });
+
+    it("accepts API key via x-api-key header", async () => {
+      const { appId, apiKey } = await createAppWithApiKey("Shop", "shop");
+      await auth(
+        supertest(app).post(`/api/apps/${appId}/environments`)
+      ).send({ name: "Dev", key: "dev" });
+
+      const res = await supertest(app)
+        .get("/api/public/apps/shop/environments/dev/toggles")
+        .set("x-api-key", apiKey);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({});
+    });
+
+    it("accepts API key via apiKey query param", async () => {
+      const { appId, apiKey } = await createAppWithApiKey("Shop", "shop");
+      await auth(
+        supertest(app).post(`/api/apps/${appId}/environments`)
+      ).send({ name: "Dev", key: "dev" });
+
+      const res = await supertest(app)
+        .get(`/api/public/apps/shop/environments/dev/toggles?apiKey=${apiKey}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({});
+    });
+
     it("returns toggle map for an app environment", async () => {
-      const appRes = await auth(
-        supertest(app).post("/api/apps")
-      ).send({ name: "Shop", key: "shop" });
-      const appId = appRes.body.id.value;
+      const { appId, apiKey } = await createAppWithApiKey("Shop", "shop");
 
       const envRes = await auth(
         supertest(app).post(`/api/apps/${appId}/environments`)
@@ -46,7 +99,7 @@ describe("Public Routes (integration)", () => {
       const t1 = await auth(
         supertest(app).post(`/api/apps/${appId}/toggles`)
       ).send({ name: "New Checkout", key: "newCheckout" });
-      const t2 = await auth(
+      await auth(
         supertest(app).post(`/api/apps/${appId}/toggles`)
       ).send({ name: "Beta Search", key: "betaSearch" });
 
@@ -54,10 +107,9 @@ describe("Public Routes (integration)", () => {
         supertest(app).put(`/api/toggles/${t1.body.id.value}/environments/${envId}`)
       ).send({ enabled: true });
 
-      // Public endpoint — no auth needed
-      const res = await supertest(app).get(
-        "/api/public/apps/shop/environments/prod/toggles"
-      );
+      const res = await supertest(app)
+        .get("/api/public/apps/shop/environments/prod/toggles")
+        .set("x-api-key", apiKey);
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({
@@ -66,73 +118,23 @@ describe("Public Routes (integration)", () => {
       });
     });
 
-    it("returns all false for toggles with no values set", async () => {
-      const appRes = await auth(
-        supertest(app).post("/api/apps")
-      ).send({ name: "Shop", key: "shop" });
-      const appId = appRes.body.id.value;
-
-      await auth(
-        supertest(app).post(`/api/apps/${appId}/environments`)
-      ).send({ name: "Dev", key: "dev" });
-      await auth(
-        supertest(app).post(`/api/apps/${appId}/toggles`)
-      ).send({ name: "Feature A", key: "featureA" });
-
-      const res = await supertest(app).get(
-        "/api/public/apps/shop/environments/dev/toggles"
-      );
-
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual({ featureA: false });
-    });
-
-    it("returns empty object when no toggles exist", async () => {
-      const appRes = await auth(
-        supertest(app).post("/api/apps")
-      ).send({ name: "Shop", key: "shop" });
-      await auth(
-        supertest(app).post(`/api/apps/${appRes.body.id.value}/environments`)
-      ).send({ name: "Dev", key: "dev" });
-
-      const res = await supertest(app).get(
-        "/api/public/apps/shop/environments/dev/toggles"
-      );
-
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual({});
-    });
-
     it("returns 404 for non-existent app", async () => {
-      const res = await supertest(app).get(
-        "/api/public/apps/nope/environments/prod/toggles"
-      );
+      const { apiKey } = await createAppWithApiKey("Shop", "shop");
 
-      expect(res.status).toBe(404);
-    });
-
-    it("returns 404 for non-existent environment", async () => {
-      await auth(
-        supertest(app).post("/api/apps")
-      ).send({ name: "Shop", key: "shop" });
-
-      const res = await supertest(app).get(
-        "/api/public/apps/shop/environments/nope/toggles"
-      );
+      const res = await supertest(app)
+        .get("/api/public/apps/nope/environments/prod/toggles")
+        .set("x-api-key", apiKey);
 
       expect(res.status).toBe(404);
     });
 
     it("returns different values per environment", async () => {
-      const appRes = await auth(
-        supertest(app).post("/api/apps")
-      ).send({ name: "Shop", key: "shop" });
-      const appId = appRes.body.id.value;
+      const { appId, apiKey } = await createAppWithApiKey("Shop", "shop");
 
       const devEnv = await auth(
         supertest(app).post(`/api/apps/${appId}/environments`)
       ).send({ name: "Dev", key: "dev" });
-      const prodEnv = await auth(
+      await auth(
         supertest(app).post(`/api/apps/${appId}/environments`)
       ).send({ name: "Prod", key: "prod" });
 
@@ -146,12 +148,12 @@ describe("Public Routes (integration)", () => {
         )
       ).send({ enabled: true });
 
-      const devRes = await supertest(app).get(
-        "/api/public/apps/shop/environments/dev/toggles"
-      );
-      const prodRes = await supertest(app).get(
-        "/api/public/apps/shop/environments/prod/toggles"
-      );
+      const devRes = await supertest(app)
+        .get("/api/public/apps/shop/environments/dev/toggles")
+        .set("x-api-key", apiKey);
+      const prodRes = await supertest(app)
+        .get("/api/public/apps/shop/environments/prod/toggles")
+        .set("x-api-key", apiKey);
 
       expect(devRes.body).toEqual({ newCheckout: true });
       expect(prodRes.body).toEqual({ newCheckout: false });

@@ -1,6 +1,9 @@
 export { createUser } from "./entities/User.js";
 export type { User, UserId, UserRole } from "./entities/User.js";
 
+export { createApiKey } from "./entities/ApiKey.js";
+export type { ApiKey, ApiKeyId } from "./entities/ApiKey.js";
+
 export { createApp } from "./entities/App.js";
 export type { App, AppId } from "./entities/App.js";
 
@@ -21,3 +24,4 @@ export type { EnvironmentRepository } from "./repositories/EnvironmentRepository
 export type { FeatureToggleRepository } from "./repositories/FeatureToggleRepository.js";
 export type { ToggleValueRepository } from "./repositories/ToggleValueRepository.js";
 export type { UserRepository } from "./repositories/UserRepository.js";
+export type { ApiKeyRepository } from "./repositories/ApiKeyRepository.js";

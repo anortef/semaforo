@@ -5,6 +5,7 @@ import {
   type AppDTO,
   type EnvironmentDTO,
   type FeatureToggleDTO,
+  type ApiKeyDTO,
 } from "../api/client.js";
 
 export function TogglesPage() {
@@ -20,16 +21,18 @@ export function TogglesPage() {
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [selectedEnvKey, setSelectedEnvKey] = useState("");
+  const [apiKeys, setApiKeys] = useState<ApiKeyDTO[]>([]);
+  const [newKeyName, setNewKeyName] = useState("");
+  const [showKeyForm, setShowKeyForm] = useState(false);
+  const [keyError, setKeyError] = useState("");
 
   const loadToggleStates = useCallback(async () => {
     if (!app) return;
     const stateMap = new Map<string, boolean>();
     for (const env of environments) {
       try {
-        const publicToggles: Record<string, boolean> = await fetch(
-          `/api/public/apps/${app.key}/environments/${env.key}/toggles`
-        ).then((r) => r.json());
-        for (const [toggleKey, enabled] of Object.entries(publicToggles)) {
+        const states = await api.toggles.getStates(app.key, env.key);
+        for (const [toggleKey, enabled] of Object.entries(states)) {
           const toggle = toggles.find((t) => t.key === toggleKey);
           if (toggle) {
             stateMap.set(`${toggle.id.value}:${env.id.value}`, enabled);
@@ -47,6 +50,7 @@ export function TogglesPage() {
     api.apps.get(appId).then(setApp).catch(console.error);
     api.environments.list(appId).then(setEnvironments).catch(console.error);
     api.toggles.list(appId).then(setToggles).catch(console.error);
+    api.apiKeys.list(appId).then(setApiKeys).catch(console.error);
   }, [appId]);
 
   useEffect(() => {
@@ -60,6 +64,29 @@ export function TogglesPage() {
       loadToggleStates();
     }
   }, [app, environments, toggles, loadToggleStates]);
+
+  async function handleCreateKey(e: React.FormEvent) {
+    e.preventDefault();
+    if (!appId) return;
+    setKeyError("");
+    try {
+      const key = await api.apiKeys.create(appId, newKeyName);
+      setApiKeys((prev) => [key, ...prev]);
+      setNewKeyName("");
+      setShowKeyForm(false);
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : "Failed to create key");
+    }
+  }
+
+  async function handleDeleteKey(keyId: string) {
+    try {
+      await api.apiKeys.delete(keyId);
+      setApiKeys((prev) => prev.filter((k) => k.id.value !== keyId));
+    } catch {
+      // ignore
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -180,7 +207,15 @@ export function TogglesPage() {
           <div className="api-info-curl">
             <div className="api-info-curl-label">cURL</div>
             <pre className="api-code-block">
-              <code>{`curl ${apiBaseUrl}${apiEndpoint}`}</code>
+              <code>{`curl ${apiBaseUrl}${apiEndpoint} \\
+  -H "x-api-key: ${apiKeys[0]?.key ?? "<your-api-key>"}"`}</code>
+            </pre>
+          </div>
+
+          <div className="api-info-curl">
+            <div className="api-info-curl-label">Or via query parameter</div>
+            <pre className="api-code-block">
+              <code>{`curl "${apiBaseUrl}${apiEndpoint}?apiKey=${apiKeys[0]?.key ?? "<your-api-key>"}"`}</code>
             </pre>
           </div>
 
@@ -197,6 +232,72 @@ ${toggles.map((t) => {
 }`}</code>
             </pre>
           </div>
+        </div>
+      )}
+
+      {app && (
+        <div className="card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: apiKeys.length > 0 || showKeyForm ? "1rem" : 0 }}>
+            <div className="card-title" style={{ marginBottom: 0 }}>API Keys</div>
+            <button className="btn btn-ghost" onClick={() => setShowKeyForm(!showKeyForm)}>
+              {showKeyForm ? "Cancel" : "+ New Key"}
+            </button>
+          </div>
+
+          {showKeyForm && (
+            <form onSubmit={handleCreateKey} style={{ marginBottom: "1rem" }}>
+              <div className="form-row">
+                <div className="form-field" style={{ flex: 1 }}>
+                  <label>Key Name</label>
+                  <input
+                    placeholder="Production Key"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    required
+                  />
+                </div>
+                <button className="btn btn-primary" type="submit">Create</button>
+              </div>
+              {keyError && <p className="error-text">{keyError}</p>}
+            </form>
+          )}
+
+          {apiKeys.length > 0 && (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Key</th>
+                    <th style={{ width: 80 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {apiKeys.map((k) => (
+                    <tr key={k.id.value}>
+                      <td>{k.name}</td>
+                      <td><code className="badge badge-key">{k.key}</code></td>
+                      <td>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ color: "var(--color-red)", fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                          onClick={() => handleDeleteKey(k.id.value)}
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {apiKeys.length === 0 && !showKeyForm && (
+            <p style={{ fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>
+              No API keys yet. Create one to access the public toggle endpoint.
+            </p>
+          )}
         </div>
       )}
 

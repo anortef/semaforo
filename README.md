@@ -39,6 +39,19 @@ Client applications consume toggles via:
 GET /api/public/apps/:appKey/environments/:envKey/toggles
 ```
 
+An API key is required. Pass it via header or query parameter:
+
+```bash
+# Via header
+curl /api/public/apps/my-app/environments/prod/toggles \
+  -H "x-api-key: sk_your_key_here"
+
+# Via query parameter
+curl "/api/public/apps/my-app/environments/prod/toggles?apiKey=sk_your_key_here"
+```
+
+API keys are managed per app in the web UI or via the API (`POST /api/apps/:appId/api-keys`).
+
 Response:
 ```json
 {
@@ -114,4 +127,7 @@ docs/           Architecture and domain documentation
 | GET | `/api/apps/:appId/toggles` | List toggles |
 | POST | `/api/apps/:appId/toggles` | Create toggle |
 | PUT | `/api/toggles/:toggleId/environments/:envId` | Set toggle value |
-| GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Public toggle endpoint |
+| GET | `/api/apps/:appId/api-keys` | List API keys |
+| POST | `/api/apps/:appId/api-keys` | Create API key |
+| DELETE | `/api/api-keys/:keyId` | Delete API key |
+| GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Public toggle endpoint (requires API key) |

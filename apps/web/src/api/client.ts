@@ -68,6 +68,13 @@ export interface AuthUserDTO {
   role: string;
 }
 
+export interface ApiKeyDTO {
+  id: { value: string };
+  appId: string;
+  name: string;
+  key: string;
+}
+
 export const api = {
   auth: {
     login: (email: string, password: string) =>
@@ -127,6 +134,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    getStates: (appKey: string, envKey: string) =>
+      request<Record<string, boolean>>(
+        `/apps/${appKey}/environments/${envKey}/toggle-states`
+      ),
     setValue: (toggleId: string, environmentId: string, enabled: boolean) =>
       request<ToggleValueDTO>(
         `/toggles/${toggleId}/environments/${environmentId}`,
@@ -135,5 +146,18 @@ export const api = {
           body: JSON.stringify({ enabled }),
         }
       ),
+  },
+  apiKeys: {
+    list: (appId: string) =>
+      request<ApiKeyDTO[]>(`/apps/${appId}/api-keys`),
+    create: (appId: string, name: string) =>
+      request<ApiKeyDTO>(`/apps/${appId}/api-keys`, {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+    delete: (keyId: string) =>
+      request<void>(`/api-keys/${keyId}`, {
+        method: "DELETE",
+      }),
   },
 };

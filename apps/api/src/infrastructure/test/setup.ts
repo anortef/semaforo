@@ -26,6 +26,7 @@ export function createTestApp(pool: pg.Pool) {
 export async function cleanDatabase(pool: pg.Pool) {
   await pool.query("DELETE FROM toggle_values");
   await pool.query("DELETE FROM feature_toggles");
+  await pool.query("DELETE FROM api_keys");
   await pool.query("DELETE FROM environments");
   await pool.query("DELETE FROM apps");
   await pool.query("DELETE FROM users");
