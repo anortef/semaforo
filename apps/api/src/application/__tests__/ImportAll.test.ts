@@ -7,6 +7,8 @@ import {
   InMemoryFeatureToggleRepository,
   InMemoryToggleValueRepository,
   InMemoryApiKeyRepository,
+  InMemorySecretRepository,
+  InMemorySecretValueRepository,
 } from "./InMemoryRepos.js";
 import { InMemoryUserRepository, InMemorySystemSettingRepository } from "./admin/InMemoryRepos.js";
 import type { AppMember, AppMemberRepository } from "@semaforo/domain";
@@ -58,7 +60,9 @@ describe("ImportAll", () => {
     settingRepo = new InMemorySystemSettingRepository();
     memberRepo = new InMemoryAppMemberRepository();
     apiKeyRepo = new InMemoryApiKeyRepository();
-    const importApp = new ImportApp(appRepo, envRepo, toggleRepo, valueRepo);
+    const secretRepo = new InMemorySecretRepository();
+    const secretValueRepo = new InMemorySecretValueRepository();
+    const importApp = new ImportApp(appRepo, envRepo, toggleRepo, valueRepo, secretRepo, secretValueRepo);
     useCase = new ImportAll(importApp, userRepo, settingRepo, memberRepo, apiKeyRepo, appRepo, envRepo);
   });
 
@@ -96,5 +100,24 @@ describe("ImportAll", () => {
     await useCase.execute(sampleExport);
 
     expect(appRepo.apps).toHaveLength(1);
+  });
+
+  it("returns warnings about JWT_SECRET", async () => {
+    const result = await useCase.execute(sampleExport);
+
+    expect(result.warnings.some((w) => w.includes("JWT_SECRET"))).toBe(true);
+  });
+
+  it("returns secrets warning when import contains secrets", async () => {
+    const exportWithSecrets: FullExport = {
+      ...sampleExport,
+      apps: [{
+        ...sampleExport.apps[0],
+        secrets: [{ key: "dbPassword", description: "DB", values: { prod: "enc_val" } }],
+      }],
+    };
+    const result = await useCase.execute(exportWithSecrets);
+
+    expect(result.warnings.some((w) => w.includes("ENCRYPTION_KEY"))).toBe(true);
   });
 });

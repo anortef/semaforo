@@ -102,6 +102,8 @@ export function createExpressApp(
   const appMemberRepository = new PgAppMemberRepository(pool);
   const systemSettingRepository = new PgSystemSettingRepository(pool);
   const auditLogRepository = new PgAuditLogRepository(pool);
+  const secretRepository = new PgSecretRepository(pool);
+  const secretValueRepository = new PgSecretValueRepository(pool);
 
   // Use cases
   const createAppUseCase = new CreateApp(appRepository);
@@ -109,9 +111,9 @@ export function createExpressApp(
   const getApp = new GetApp(appRepository);
   const requestCountRepository = new PgRequestCountRepository(pool);
   const getAppMetrics = new GetAppMetrics(appRepository, environmentRepository, toggleRepository, cache, requestCounter, requestCountRepository);
-  const exportApp = new ExportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository);
-  const importApp = new ImportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository);
-  const getAppAuditLog = new GetAppAuditLog(appRepository, environmentRepository, toggleRepository, auditLogRepository);
+  const exportApp = new ExportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository, secretRepository, secretValueRepository);
+  const importApp = new ImportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository, secretRepository, secretValueRepository);
+  const getAppAuditLog = new GetAppAuditLog(appRepository, environmentRepository, toggleRepository, auditLogRepository, secretRepository);
   const exportAll = new ExportAll(appRepository, exportApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, environmentRepository);
   const importAll = new ImportAll(importApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, appRepository, environmentRepository);
   const createEnvironment = new CreateEnvironment(
@@ -146,8 +148,6 @@ export function createExpressApp(
   const listAppMembersUseCase = new ListAppMembers(appMemberRepository);
 
   // Secrets
-  const secretRepository = new PgSecretRepository(pool);
-  const secretValueRepository = new PgSecretValueRepository(pool);
   const resolvedSecretCache = secretCache ?? new NoOpSecretCache();
   const encryptionService = config.encryption.key
     ? createEncryptionService(config.encryption.key)
@@ -223,6 +223,7 @@ export function createExpressApp(
     appRepository,
     environmentRepository,
     toggleRepository,
+    secretRepository,
     exportAll,
     importAll,
     onSettingChanged: onRateLimitSettingChanged,

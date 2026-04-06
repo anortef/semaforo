@@ -334,7 +334,7 @@ export const api = {
     export: () =>
       request<unknown>("/admin/export"),
     import: (data: unknown) =>
-      request<{ success: boolean }>("/admin/import", {
+      request<{ success: boolean; warnings: string[] }>("/admin/import", {
         method: "POST",
         body: JSON.stringify(data),
       }),

@@ -4,10 +4,14 @@ import {
   createEnvironment,
   createFeatureToggle,
   createToggleValue,
+  createSecret,
+  createSecretValue,
   type AppRepository,
   type EnvironmentRepository,
   type FeatureToggleRepository,
   type ToggleValueRepository,
+  type SecretRepository,
+  type SecretValueRepository,
 } from "@semaforo/domain";
 
 export interface AppExport {
@@ -21,6 +25,11 @@ export interface AppExport {
     values: Record<string, boolean | string>;
     rollout?: Record<string, number>;
   }>;
+  secrets?: Array<{
+    key: string;
+    description?: string;
+    values: Record<string, string>;
+  }>;
 }
 
 export class ImportApp {
@@ -28,7 +37,9 @@ export class ImportApp {
     private appRepository: AppRepository,
     private environmentRepository: EnvironmentRepository,
     private toggleRepository: FeatureToggleRepository,
-    private toggleValueRepository: ToggleValueRepository
+    private toggleValueRepository: ToggleValueRepository,
+    private secretRepository?: SecretRepository,
+    private secretValueRepository?: SecretValueRepository
   ) {}
 
   async execute(data: AppExport): Promise<void> {
@@ -80,6 +91,31 @@ export class ImportApp {
           rolloutPercentage: toggleData.rollout?.[envKey],
         });
         await this.toggleValueRepository.save(tv);
+      }
+    }
+
+    // Import secrets (encrypted values imported as-is — requires same ENCRYPTION_KEY)
+    if (data.secrets && this.secretRepository && this.secretValueRepository) {
+      for (const secretData of data.secrets) {
+        const secret = createSecret({
+          id: uuid(),
+          appId: app.id.value,
+          key: secretData.key,
+          description: secretData.description,
+        });
+        await this.secretRepository.save(secret);
+
+        for (const [envKey, encryptedValue] of Object.entries(secretData.values)) {
+          const envId = envIdByKey.get(envKey);
+          if (!envId || !encryptedValue) continue;
+          const sv = createSecretValue({
+            id: uuid(),
+            secretId: secret.id.value,
+            environmentId: envId,
+            encryptedValue,
+          });
+          await this.secretValueRepository.save(sv);
+        }
       }
     }
   }

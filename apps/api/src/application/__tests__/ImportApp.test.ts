@@ -5,6 +5,8 @@ import {
   InMemoryEnvironmentRepository,
   InMemoryFeatureToggleRepository,
   InMemoryToggleValueRepository,
+  InMemorySecretRepository,
+  InMemorySecretValueRepository,
 } from "./InMemoryRepos.js";
 
 const sampleExport: AppExport = {
@@ -17,6 +19,9 @@ const sampleExport: AppExport = {
     { name: "Checkout", key: "checkout", description: "New checkout", values: { prod: true, dev: false } },
     { name: "Search", key: "search", description: "", values: { prod: false, dev: true } },
   ],
+  secrets: [
+    { key: "dbPassword", description: "DB pass", values: { prod: "enc_prod_pw", dev: "enc_dev_pw" } },
+  ],
 };
 
 describe("ImportApp", () => {
@@ -24,6 +29,8 @@ describe("ImportApp", () => {
   let envRepo: InMemoryEnvironmentRepository;
   let toggleRepo: InMemoryFeatureToggleRepository;
   let valueRepo: InMemoryToggleValueRepository;
+  let secretRepo: InMemorySecretRepository;
+  let secretValueRepo: InMemorySecretValueRepository;
   let useCase: ImportApp;
 
   beforeEach(() => {
@@ -31,7 +38,9 @@ describe("ImportApp", () => {
     envRepo = new InMemoryEnvironmentRepository();
     toggleRepo = new InMemoryFeatureToggleRepository();
     valueRepo = new InMemoryToggleValueRepository();
-    useCase = new ImportApp(appRepo, envRepo, toggleRepo, valueRepo);
+    secretRepo = new InMemorySecretRepository();
+    secretValueRepo = new InMemorySecretValueRepository();
+    useCase = new ImportApp(appRepo, envRepo, toggleRepo, valueRepo, secretRepo, secretValueRepo);
   });
 
   it("creates the app", async () => {
@@ -56,6 +65,20 @@ describe("ImportApp", () => {
     await useCase.execute(sampleExport);
 
     expect(valueRepo.values).toHaveLength(4);
+  });
+
+  it("creates secrets", async () => {
+    await useCase.execute(sampleExport);
+
+    expect(secretRepo.secrets).toHaveLength(1);
+    expect(secretRepo.secrets[0].key).toBe("dbPassword");
+  });
+
+  it("creates secret values with encrypted data", async () => {
+    await useCase.execute(sampleExport);
+
+    expect(secretValueRepo.values).toHaveLength(2);
+    expect(secretValueRepo.values[0].encryptedValue).toBe("enc_prod_pw");
   });
 
   it("rejects duplicate app key", async () => {

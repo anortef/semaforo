@@ -9,7 +9,7 @@ import type { AdminUpdateSystemSetting } from "../../../application/admin/Update
 import type { AdminListAuditLog } from "../../../application/admin/ListAuditLog.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type pg from "pg";
-import type { UserRepository, AppRepository, EnvironmentRepository, FeatureToggleRepository } from "@semaforo/domain";
+import type { UserRepository, AppRepository, EnvironmentRepository, FeatureToggleRepository, SecretRepository } from "@semaforo/domain";
 import type { ExportAll } from "../../../application/ExportAll.js";
 import type { ImportAll } from "../../../application/ImportAll.js";
 
@@ -28,6 +28,7 @@ interface AdminRouteDeps {
   appRepository: AppRepository;
   environmentRepository: EnvironmentRepository;
   toggleRepository: FeatureToggleRepository;
+  secretRepository?: SecretRepository;
   exportAll?: ExportAll;
   importAll?: ImportAll;
   onSettingChanged?: (key: string) => Promise<void>;
@@ -198,6 +199,10 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
           const t = await deps.toggleRepository.findById(id);
           return t?.name ?? "Deleted toggle";
         }
+        if (type === "secret" && deps.secretRepository) {
+          const s = await deps.secretRepository.findById(id);
+          return s?.key ?? "Deleted secret";
+        }
         return id;
       }
 
@@ -257,14 +262,14 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
   if (deps.importAll) {
     router.post("/import", async (req, res) => {
       try {
-        await deps.importAll!.execute(req.body);
+        const result = await deps.importAll!.execute(req.body);
         await deps.recordAudit.execute({
           userId: res.locals.userId,
           action: "system.import",
           resourceType: "system",
           resourceId: "import",
         });
-        res.status(201).json({ success: true });
+        res.status(201).json(result);
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Import failed";
         res.status(400).json({ error: msg });

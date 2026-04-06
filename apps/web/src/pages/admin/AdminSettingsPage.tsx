@@ -13,6 +13,7 @@ export function AdminSettingsPage() {
   const [settings, setSettings] = useState<Map<string, string>>(new Map());
   const [saving, setSaving] = useState<string | null>(null);
   const [importError, setImportError] = useState("");
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { refresh } = useApps();
 
@@ -52,10 +53,14 @@ export function AdminSettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setImportError("");
+    setImportWarnings([]);
     const text = await file.text();
     try {
       const data = JSON.parse(text);
-      await api.admin.import(data);
+      const result = await api.admin.import(data);
+      if (result.warnings?.length > 0) {
+        setImportWarnings(result.warnings);
+      }
       await refresh();
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed");
@@ -78,6 +83,14 @@ export function AdminSettingsPage() {
       </div>
 
       {importError && <p className="error-text" style={{ marginBottom: "1rem" }}>{importError}</p>}
+      {importWarnings.length > 0 && (
+        <div className="card" style={{ marginBottom: "1rem", background: "var(--color-warning-bg, #fef3cd)", border: "1px solid var(--color-warning-border, #ffc107)" }}>
+          <div className="card-title" style={{ fontSize: "0.8125rem" }}>Import Warnings</div>
+          <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.8125rem" }}>
+            {importWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
 
       {KNOWN_SETTINGS.map(({ key, label, placeholder }) => (
         <div key={key} className="card">

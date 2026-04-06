@@ -15,6 +15,11 @@ import {
 } from "@semaforo/domain";
 import type { ImportApp } from "./ImportApp.js";
 
+export interface ImportResult {
+  success: boolean;
+  warnings: string[];
+}
+
 export interface FullExport {
   users: Array<{
     email: string;
@@ -33,6 +38,11 @@ export interface FullExport {
       description?: string;
       values: Record<string, boolean>;
     }>;
+    secrets?: Array<{
+      key: string;
+      description?: string;
+      values: Record<string, string>;
+    }>;
     members: Array<{ userEmail: string; role: string }>;
     apiKeys: Array<{ environmentKey: string; key: string; name: string }>;
   }>;
@@ -50,7 +60,8 @@ export class ImportAll {
     private environmentRepository: EnvironmentRepository
   ) {}
 
-  async execute(data: FullExport): Promise<void> {
+  async execute(data: FullExport): Promise<ImportResult> {
+    const warnings: string[] = [];
     // 1. Restore users (with pre-hashed passwords)
     const userIdByEmail = new Map<string, string>();
     for (const u of data.users) {
@@ -76,7 +87,8 @@ export class ImportAll {
       await this.settingRepository.save(setting);
     }
 
-    // 3. Restore apps with toggles and environments
+    // 3. Restore apps with toggles, environments, and secrets
+    let hasSecrets = false;
     for (const appData of data.apps) {
       await this.importApp.execute(appData);
 
@@ -110,6 +122,27 @@ export class ImportAll {
         });
         await this.apiKeyRepository.save(apiKey);
       }
+
+      // Check if import contains secrets
+      if (appData.secrets && appData.secrets.length > 0) {
+        hasSecrets = true;
+      }
     }
+
+    if (hasSecrets) {
+      warnings.push(
+        "This import contains encrypted secrets. To decrypt them, you must set the same ENCRYPTION_KEY in your .env file that was used when the secrets were originally created.",
+        "Update your .env file: ENCRYPTION_KEY=<original_key>",
+        "Then restart the environment: docker compose down && ./start.sh"
+      );
+    }
+
+    // JWT_SECRET warning: imported users have password hashes tied to the original instance
+    warnings.push(
+      "Imported users retain their original password hashes. Ensure JWT_SECRET in your .env file is set appropriately.",
+      "If this is a new instance, update .env with the original JWT_SECRET value and restart: docker compose down && ./start.sh"
+    );
+
+    return { success: true, warnings };
   }
 }

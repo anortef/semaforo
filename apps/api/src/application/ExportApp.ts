@@ -3,6 +3,8 @@ import type {
   EnvironmentRepository,
   FeatureToggleRepository,
   ToggleValueRepository,
+  SecretRepository,
+  SecretValueRepository,
 } from "@semaforo/domain";
 
 export interface AppExportData {
@@ -16,6 +18,11 @@ export interface AppExportData {
     values: Record<string, boolean | string>;
     rollout?: Record<string, number>;
   }>;
+  secrets: Array<{
+    key: string;
+    description: string;
+    values: Record<string, string>;
+  }>;
   exportedAt: string;
 }
 
@@ -24,7 +31,9 @@ export class ExportApp {
     private appRepository: AppRepository,
     private environmentRepository: EnvironmentRepository,
     private toggleRepository: FeatureToggleRepository,
-    private toggleValueRepository: ToggleValueRepository
+    private toggleValueRepository: ToggleValueRepository,
+    private secretRepository?: SecretRepository,
+    private secretValueRepository?: SecretValueRepository
   ) {}
 
   async execute(appId: string): Promise<AppExportData> {
@@ -63,6 +72,27 @@ export class ExportApp {
       })
     );
 
+    // Export secrets (encrypted values as-is)
+    const secretExports: AppExportData["secrets"] = [];
+    if (this.secretRepository && this.secretValueRepository) {
+      const secrets = await this.secretRepository.findByAppId(appId);
+      for (const secret of secrets) {
+        const values: Record<string, string> = {};
+        for (const env of envs) {
+          const sv = await this.secretValueRepository.findBySecretAndEnvironment(
+            secret.id.value,
+            env.id.value
+          );
+          values[env.key] = sv?.encryptedValue ?? "";
+        }
+        secretExports.push({
+          key: secret.key,
+          description: secret.description,
+          values,
+        });
+      }
+    }
+
     return {
       app: { name: app.name, key: app.key, description: app.description },
       environments: envs.map((e) => ({
@@ -71,6 +101,7 @@ export class ExportApp {
         cacheTtlSeconds: e.cacheTtlSeconds,
       })),
       toggles: toggleExports,
+      secrets: secretExports,
       exportedAt: new Date().toISOString(),
     };
   }
