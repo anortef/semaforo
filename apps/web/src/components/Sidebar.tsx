@@ -65,6 +65,15 @@ export function Sidebar() {
                         Toggles
                       </NavLink>
                       <NavLink
+                        to={`/apps/${app.id.value}/string-values`}
+                        className={({ isActive }) =>
+                          `sidebar-link${isActive ? " active" : ""}`
+                        }
+                      >
+                        <span className="sidebar-link-icon">&#9998;</span>
+                        String Values
+                      </NavLink>
+                      <NavLink
                         to={`/apps/${app.id.value}/environments`}
                         className={({ isActive }) =>
                           `sidebar-link${isActive ? " active" : ""}`
