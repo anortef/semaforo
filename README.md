@@ -59,8 +59,7 @@ Per-environment encrypted secrets (e.g., database passwords, API tokens). Values
 - **Public API**: Client apps fetch decrypted secrets via API key, same pattern as toggles
 
 ```bash
-curl /api/public/apps/my-app/environments/prod/secrets \
-  -H "x-api-key: sk_your_key_here"
+curl /api/public/secrets -H "x-api-key: sk_your_key_here"
 ```
 
 Response:
@@ -114,34 +113,50 @@ Five built-in themes (Dark, Light, Midnight, Forest, Sunset) selectable from col
 
 ## Public API
 
-The simplest way to fetch toggles — the API key determines the environment:
+The API key determines the environment. All endpoints use `x-api-key` header. Keys are managed per environment and auto-generated on environment creation.
+
+### Boolean Toggles
 
 ```bash
 curl /api/public/toggles -H "x-api-key: sk_your_key_here"
 ```
 
-Single toggle lookup:
+Single toggle: `/api/public/toggles/myToggle`
 
-```bash
-curl /api/public/toggles/myToggle -H "x-api-key: sk_your_key_here"
+```json
+{ "newCheckout": true, "betaSearch": false }
 ```
 
-Full path (alternative):
+### String Values
+
+```bash
+curl /api/public/values -H "x-api-key: sk_your_key_here"
+```
+
+Single value: `/api/public/values/bannerMessage`
+
+```json
+{ "bannerMessage": "Welcome!", "maintenanceNote": "" }
+```
+
+### Secrets
+
+```bash
+curl /api/public/secrets -H "x-api-key: sk_your_key_here"
+```
+
+```json
+{ "databasePassword": "s3cret", "stripeApiKey": "sk_live_..." }
+```
+
+### Full-path alternatives (backwards compatible)
 
 ```bash
 curl /api/public/apps/my-app/environments/prod/toggles \
   -H "x-api-key: sk_your_key_here"
-```
 
-API keys must be passed via the `x-api-key` header. Keys are managed per environment and auto-generated on environment creation.
-
-Response (mixed boolean + string):
-```json
-{
-  "newCheckout": true,
-  "betaSearch": false,
-  "bannerMessage": "Welcome!"
-}
+curl /api/public/apps/my-app/environments/prod/secrets \
+  -H "x-api-key: sk_your_key_here"
 ```
 
 ## Access Control
@@ -306,11 +321,14 @@ docs/           Architecture and domain documentation
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/public/toggles` | Get toggles (environment from API key) |
+| GET | `/api/public/toggles` | Get boolean toggles |
 | GET | `/api/public/toggles/:toggleKey` | Get single toggle |
+| GET | `/api/public/values` | Get string values |
+| GET | `/api/public/values/:valueKey` | Get single value |
+| GET | `/api/public/secrets` | Get decrypted secrets |
 | GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Get toggles (full path) |
 | GET | `/api/public/apps/:appKey/environments/:envKey/toggles/:toggleKey` | Get single toggle (full path) |
-| GET | `/api/public/apps/:appKey/environments/:envKey/secrets` | Get decrypted secrets |
+| GET | `/api/public/apps/:appKey/environments/:envKey/secrets` | Get secrets (full path) |
 
 ### Admin (admin role required)
 

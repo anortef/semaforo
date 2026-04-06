@@ -24,6 +24,7 @@ import { CreateFeatureToggle } from "../../application/CreateFeatureToggle.js";
 import { ListToggles } from "../../application/ListToggles.js";
 import { SetToggleValue } from "../../application/SetToggleValue.js";
 import { GetPublicToggles } from "../../application/GetPublicToggles.js";
+import { GetPublicValues } from "../../application/GetPublicValues.js";
 import { Login } from "../../application/Login.js";
 import { CreateApiKey } from "../../application/CreateApiKey.js";
 import { ListApiKeys } from "../../application/ListApiKeys.js";
@@ -139,6 +140,13 @@ export function createExpressApp(
     toggleValueRepository,
     cache
   );
+  const getPublicValues = new GetPublicValues(
+    appRepository,
+    environmentRepository,
+    toggleRepository,
+    toggleValueRepository,
+    cache
+  );
   const login = new Login(userRepository, config.jwt.secret);
   const createApiKeyUseCase = new CreateApiKey(apiKeyRepository, environmentRepository);
   const listApiKeysUseCase = new ListApiKeys(apiKeyRepository);
@@ -180,7 +188,7 @@ export function createExpressApp(
   const getPublicSecretsUseCase = encryptionService
     ? new GetPublicSecrets(appRepository, environmentRepository, secretRepository, secretValueRepository, encryptionService, resolvedSecretCache)
     : undefined;
-  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase));
+  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase, getPublicValues));
 
   // Auth routes (login rate limited)
   app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwt.secret, securityLogger));

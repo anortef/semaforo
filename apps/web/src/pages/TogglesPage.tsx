@@ -184,7 +184,7 @@ export function TogglesPage() {
       {app && environments.length > 0 && (
         <div className="card api-info-card">
           <div className="card-title">API Endpoint</div>
-          <p className="api-info-desc">The API key determines the environment. Response includes both boolean toggles and string values.</p>
+          <p className="api-info-desc">The API key determines the environment. Returns boolean toggles only.</p>
           <div className="api-info-env-selector">
             <label>Environment:</label>
             <div className="api-env-tabs">

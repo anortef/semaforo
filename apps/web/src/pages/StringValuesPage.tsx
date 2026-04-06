@@ -150,7 +150,7 @@ export function StringValuesPage() {
         return (
           <div className="card api-info-card">
             <div className="card-title">API Endpoint</div>
-            <p className="api-info-desc">String values are included in the toggles response. Filter by key to fetch a single value.</p>
+            <p className="api-info-desc">The API key determines the environment. Returns string values only.</p>
             <div className="api-info-env-selector">
               <label>Environment:</label>
               <div className="api-env-tabs">
@@ -161,12 +161,12 @@ export function StringValuesPage() {
             </div>
             <div className="api-info-method">
               <span className="api-method-badge">GET</span>
-              <code className="api-url">{apiBaseUrl}/api/public/toggles</code>
+              <code className="api-url">{apiBaseUrl}/api/public/values</code>
             </div>
             <div className="api-info-curl">
               <div className="api-info-curl-label">cURL</div>
               <pre className="api-code-block">
-                <code>{`curl ${apiBaseUrl}/api/public/toggles \\
+                <code>{`curl ${apiBaseUrl}/api/public/values \\
   -H "x-api-key: ${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
               </pre>
             </div>

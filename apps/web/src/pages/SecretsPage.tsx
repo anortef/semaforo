@@ -184,12 +184,12 @@ export function SecretsPage() {
             </div>
             <div className="api-info-method">
               <span className="api-method-badge">GET</span>
-              <code className="api-url">{apiBaseUrl}/api/public/apps/{app.key}/environments/{selectedEnvKey}/secrets</code>
+              <code className="api-url">{apiBaseUrl}/api/public/secrets</code>
             </div>
             <div className="api-info-curl">
               <div className="api-info-curl-label">cURL</div>
               <pre className="api-code-block">
-                <code>{`curl ${apiBaseUrl}/api/public/apps/${app.key}/environments/${selectedEnvKey}/secrets \\
+                <code>{`curl ${apiBaseUrl}/api/public/secrets \\
   -H "x-api-key: ${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
               </pre>
             </div>

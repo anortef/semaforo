@@ -30,7 +30,8 @@ export class GetPublicToggles {
     );
     if (!environment) throw new Error("Environment not found");
 
-    const toggles = await this.toggleRepository.findByAppId(app.id.value);
+    const allToggles = await this.toggleRepository.findByAppId(app.id.value);
+    const booleanToggles = allToggles.filter((t) => t.type !== "string");
     const values = await this.toggleValueRepository.findByEnvironmentId(environment.id.value);
     const valueByToggleId = new Map(values.map((v) => [v.toggleId, v]));
 
@@ -43,14 +44,14 @@ export class GetPublicToggles {
     }
 
     if (params.toggleKey) {
-      const toggle = toggles.find((t) => t.key === params.toggleKey);
+      const toggle = booleanToggles.find((t) => t.key === params.toggleKey);
       if (!toggle) return { [params.toggleKey]: false };
       const tv = valueByToggleId.get(toggle.id.value);
       return { [params.toggleKey]: this.resolveValue(toggle, tv, params.userId) };
     }
 
     const result: Record<string, boolean | string> = {};
-    for (const toggle of toggles) {
+    for (const toggle of booleanToggles) {
       const tv = valueByToggleId.get(toggle.id.value);
       result[toggle.key] = this.resolveValue(toggle, tv, params.userId);
     }
