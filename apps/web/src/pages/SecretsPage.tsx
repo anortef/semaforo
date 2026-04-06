@@ -6,6 +6,7 @@ import {
   type EnvironmentDTO,
   type SecretDTO,
   type MaskedSecretValueDTO,
+  type ApiKeyDTO,
 } from "../api/client.js";
 
 export function SecretsPage() {
@@ -20,6 +21,8 @@ export function SecretsPage() {
   const [key, setKey] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [selectedEnvKey, setSelectedEnvKey] = useState("");
+  const [envKeys, setEnvKeys] = useState<Map<string, ApiKeyDTO[]>>(new Map());
 
   useEffect(() => {
     if (!appId) return;
@@ -27,6 +30,15 @@ export function SecretsPage() {
     api.environments.list(appId).then(setEnvironments).catch(console.error);
     api.secrets.list(appId).then(setSecrets).catch(console.error);
   }, [appId]);
+
+  useEffect(() => {
+    for (const env of environments) {
+      api.apiKeys.list(env.id.value).then((keys) => {
+        setEnvKeys((prev) => new Map(prev).set(env.id.value, keys));
+      }).catch(console.error);
+    }
+    if (environments.length > 0 && !selectedEnvKey) setSelectedEnvKey(environments[0].key);
+  }, [environments]);
 
   useEffect(() => {
     if (secrets.length === 0 || environments.length === 0) return;
@@ -153,6 +165,37 @@ export function SecretsPage() {
           </form>
         </div>
       )}
+
+      {app && environments.length > 0 && (() => {
+        const selectedEnv = environments.find((e) => e.key === selectedEnvKey);
+        const selectedEnvApiKey = selectedEnv ? (envKeys.get(selectedEnv.id.value) ?? [])[0]?.key : undefined;
+        const apiBaseUrl = typeof window !== "undefined" ? `${window.location.protocol}//${window.location.host}` : "";
+        return (
+          <div className="card api-info-card">
+            <div className="card-title">API Endpoint</div>
+            <p className="api-info-desc">Fetch decrypted secrets for an environment. Secrets are returned as key-value pairs.</p>
+            <div className="api-info-env-selector">
+              <label>Environment:</label>
+              <div className="api-env-tabs">
+                {environments.map((env) => (
+                  <button key={env.id.value} className={`api-env-tab${selectedEnvKey === env.key ? " api-env-tab-active" : ""}`} onClick={() => setSelectedEnvKey(env.key)}>{env.name}</button>
+                ))}
+              </div>
+            </div>
+            <div className="api-info-method">
+              <span className="api-method-badge">GET</span>
+              <code className="api-url">{apiBaseUrl}/api/public/apps/{app.key}/environments/{selectedEnvKey}/secrets</code>
+            </div>
+            <div className="api-info-curl">
+              <div className="api-info-curl-label">cURL</div>
+              <pre className="api-code-block">
+                <code>{`curl ${apiBaseUrl}/api/public/apps/${app.key}/environments/${selectedEnvKey}/secrets \\
+  -H "x-api-key: ${selectedEnvApiKey ?? "<your-api-key>"}"`}</code>
+              </pre>
+            </div>
+          </div>
+        );
+      })()}
 
       {environments.length === 0 ? (
         <div className="card"><div className="empty-state"><div className="empty-state-icon">&#9729;</div><p>Create environments first.</p></div></div>
