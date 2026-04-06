@@ -238,7 +238,7 @@ export function TogglesPage() {
                             style={{ marginLeft: "0.5rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: abActive ? "var(--color-accent)" : "var(--color-text-muted)" }}
                             onClick={() => toggleAb(toggle.id.value)}
                           >
-                            {abActive ? "A/B" : "A/B"}
+                            A/B Testing
                           </button>
                         </td>
                         {environments.map((env) => {
