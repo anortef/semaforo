@@ -31,6 +31,7 @@ import { DeleteApiKey } from "../../application/DeleteApiKey.js";
 import { ExportApp } from "../../application/ExportApp.js";
 import { ExportAll } from "../../application/ExportAll.js";
 import { ImportApp } from "../../application/ImportApp.js";
+import { ImportAll } from "../../application/ImportAll.js";
 import { AdminCreateUser } from "../../application/admin/CreateUser.js";
 import { AdminListUsers } from "../../application/admin/ListUsers.js";
 import { AdminUpdateUser } from "../../application/admin/UpdateUser.js";
@@ -92,7 +93,8 @@ export function createExpressApp(
   const getAppMetrics = new GetAppMetrics(appRepository, environmentRepository, toggleRepository, cache, requestCounter, requestCountRepository);
   const exportApp = new ExportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository);
   const importApp = new ImportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository);
-  const exportAll = new ExportAll(appRepository, exportApp);
+  const exportAll = new ExportAll(appRepository, exportApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, environmentRepository);
+  const importAll = new ImportAll(importApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, appRepository, environmentRepository);
   const createEnvironment = new CreateEnvironment(
     appRepository,
     environmentRepository,
@@ -188,7 +190,7 @@ export function createExpressApp(
     recordAudit,
     pool,
     exportAll,
-    importApp,
+    importAll,
   }));
 
   // Protected routes (require JWT auth)

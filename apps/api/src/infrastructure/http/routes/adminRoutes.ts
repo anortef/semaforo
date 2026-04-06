@@ -10,7 +10,7 @@ import type { AdminListAuditLog } from "../../../application/admin/ListAuditLog.
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type pg from "pg";
 import type { ExportAll } from "../../../application/ExportAll.js";
-import type { ImportApp } from "../../../application/ImportApp.js";
+import type { ImportAll } from "../../../application/ImportAll.js";
 
 interface AdminRouteDeps {
   createUser: AdminCreateUser;
@@ -24,7 +24,7 @@ interface AdminRouteDeps {
   recordAudit: RecordAuditEvent;
   pool: pg.Pool;
   exportAll?: ExportAll;
-  importApp?: ImportApp;
+  importAll?: ImportAll;
 }
 
 export function adminRoutes(deps: AdminRouteDeps): Router {
@@ -199,17 +199,10 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
     });
   }
 
-  if (deps.importApp) {
+  if (deps.importAll) {
     router.post("/import", async (req, res) => {
       try {
-        const data = req.body;
-        if (data.apps) {
-          for (const appData of data.apps) {
-            await deps.importApp!.execute(appData);
-          }
-        } else {
-          await deps.importApp!.execute(data);
-        }
+        await deps.importAll!.execute(req.body);
         await deps.recordAudit.execute({
           userId: res.locals.userId,
           action: "system.import",
