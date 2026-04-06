@@ -13,6 +13,7 @@ describe("loadConfig", () => {
   });
 
   it("throws when JWT_SECRET is not set", () => {
+    process.env.CORS_ORIGIN = "http://localhost:5173";
     delete process.env.JWT_SECRET;
 
     expect(() => loadConfig()).toThrow("JWT_SECRET");
