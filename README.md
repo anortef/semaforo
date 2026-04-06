@@ -1,6 +1,6 @@
 # Semaforo
 
-Feature toggle management platform with per-app access control, environment-scoped API keys, and an admin panel.
+Feature toggle management platform with A/B testing, string values, per-app access control, request metrics, and an admin panel.
 
 ## Quick Start
 
@@ -32,6 +32,55 @@ A default admin user is created on first startup:
 | Email | `admin@semaforo.local` |
 | Password | `admin` |
 
+## Features
+
+### Boolean Toggles
+On/off switches per environment. Manage via the Toggles page — grid of toggle x environment with instant switching.
+
+### String Values
+Configurable text values per environment (e.g., banner messages, feature labels). Managed on a dedicated String Values page with per-environment inputs and a Save button.
+
+### A/B Testing
+Per-toggle, per-environment rollout percentages (0-100%). Click "A/B Testing" on any boolean toggle to expand the rollout configuration. Set a percentage per environment and click "Apply".
+
+- **With `x-user-id` header**: deterministic — same user always gets the same result (hash-based bucketing)
+- **Without `x-user-id`**: random per request
+
+```bash
+# Deterministic A/B for a specific user
+curl /api/public/toggles \
+  -H "x-api-key: sk_..." \
+  -H "x-user-id: user-123"
+```
+
+### Metrics
+Per-app metrics page with:
+- Toggle and environment counts
+- Cache status, size, and remaining TTL per environment
+- Request counts: unflushed (Redis), 5m, 1h, 1d, 1w, 1mo
+- Auto-refreshes every 5 seconds
+
+Request tracking uses Redis INCR (zero latency) with a background flush to Postgres every 5 minutes.
+
+### Audit Log
+Every resource creation and status change is logged:
+- App/environment/toggle creation
+- Toggle enable/disable/rollout changes
+- Member additions/removals
+- Admin user and settings changes
+- System imports
+
+Per-app audit log (in each app's sidebar) and system-wide audit log (admin panel). All entries show resolved resource names, not UUIDs.
+
+### Export / Import
+- **Per-app**: Export/Import buttons on the app Settings page
+- **Admin**: Export All / Import on the admin Settings page
+
+Full instance export includes users (with bcrypt hashes), system settings, apps, environments, toggles, toggle values, rollout percentages, app members, and API keys. The seed admin is excluded — fresh installs create it automatically.
+
+### Themes
+Five built-in themes (Dark, Light, Midnight, Forest, Sunset) selectable from colored dots in the sidebar footer. Persisted in localStorage.
+
 ## Public API
 
 The simplest way to fetch toggles — the API key determines the environment:
@@ -40,20 +89,27 @@ The simplest way to fetch toggles — the API key determines the environment:
 curl /api/public/toggles -H "x-api-key: sk_your_key_here"
 ```
 
-Or use the full path if preferred:
+Single toggle lookup:
+
+```bash
+curl /api/public/toggles/myToggle -H "x-api-key: sk_your_key_here"
+```
+
+Full path (alternative):
 
 ```bash
 curl /api/public/apps/my-app/environments/prod/toggles \
   -H "x-api-key: sk_your_key_here"
 ```
 
-API keys must be passed via the `x-api-key` header. Keys are managed per environment in the web UI and are auto-generated when an environment is created.
+API keys must be passed via the `x-api-key` header. Keys are managed per environment and auto-generated on environment creation.
 
-Response:
+Response (mixed boolean + string):
 ```json
 {
   "newCheckout": true,
-  "betaSearch": false
+  "betaSearch": false,
+  "bannerMessage": "Welcome!"
 }
 ```
 
@@ -68,8 +124,6 @@ Response:
 
 ### App Member Roles
 
-Each application has its own member list with per-user roles:
-
 | Role | Description |
 |------|-------------|
 | `owner` | Full control over the application |
@@ -83,9 +137,21 @@ Members are managed in each app's **Settings** page.
 Available at `/admin` in the web UI (admin role required).
 
 - **Users** — Create, edit, disable, delete users; reset passwords; assign system roles
-- **Settings** — System-wide configuration (public domain, instance name)
-- **Audit Log** — Paginated log of all admin actions with timestamps
-- **Health** — Database status, user/app counts, API uptime
+- **Settings** — Public domain, instance name, configurable rate limits, export/import
+- **Audit Log** — Paginated log of all actions with resolved resource names
+- **Health** — Database status, memory (MB), CPU load average (1m/5m/15m), uptime, user/app counts
+
+## Security
+
+- JWT authentication with configurable secret (required, no default)
+- bcrypt password hashing (10 salt rounds)
+- Two-tier rate limiting: generous for cached responses (configurable, default 100k/min), strict for DB hits (configurable, default 100/min)
+- Rate limits configurable via admin settings, stored in Postgres, served from Redis
+- Helmet security headers
+- API keys via `x-api-key` header only
+- Request body size limited to 1MB
+- Audit logging for all resource mutations
+- Disabled users cannot log in
 
 ## Development
 
@@ -137,22 +203,6 @@ docker/         Dockerfiles
 docs/           Architecture and domain documentation
 ```
 
-## Security
-
-- JWT authentication with configurable secret (required, no default)
-- bcrypt password hashing (10 salt rounds)
-- Rate limiting on login (10 req/15min) and public endpoints (100 req/min)
-- Helmet security headers
-- API keys via `x-api-key` header only (no query params)
-- Request body size limited to 1MB
-- Audit logging for all admin actions
-- Disabled users cannot log in
-
-## Documentation
-
-- [Architecture](docs/architecture.md)
-- [Domain Model](docs/domain.md)
-
 ## API Endpoints
 
 ### Authentication
@@ -169,6 +219,10 @@ docs/           Architecture and domain documentation
 | GET | `/api/apps` | List all apps |
 | POST | `/api/apps` | Create an app |
 | GET | `/api/apps/:appId` | Get app details |
+| GET | `/api/apps/:appId/metrics` | App metrics (toggles, cache, requests) |
+| GET | `/api/apps/:appId/audit-log` | App audit log |
+| GET | `/api/apps/:appId/export` | Export app as JSON |
+| POST | `/api/apps/import` | Import app from JSON |
 
 ### Environments
 
@@ -184,8 +238,9 @@ docs/           Architecture and domain documentation
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/apps/:appId/toggles` | List toggles |
-| POST | `/api/apps/:appId/toggles` | Create toggle |
-| PUT | `/api/toggles/:toggleId/environments/:envId` | Set toggle value |
+| POST | `/api/apps/:appId/toggles` | Create toggle (type: boolean or string) |
+| PUT | `/api/toggles/:toggleId/environments/:envId` | Set value (enabled, stringValue, rolloutPercentage) |
+| GET | `/api/apps/:appId/toggle-values` | All toggle values with timestamps |
 
 ### API Keys (per environment)
 
@@ -207,8 +262,10 @@ docs/           Architecture and domain documentation
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/public/toggles` | Get toggles (environment resolved from API key) |
-| GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Get toggles (explicit path) |
+| GET | `/api/public/toggles` | Get toggles (environment from API key) |
+| GET | `/api/public/toggles/:toggleKey` | Get single toggle |
+| GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Get toggles (full path) |
+| GET | `/api/public/apps/:appKey/environments/:envKey/toggles/:toggleKey` | Get single toggle (full path) |
 
 ### Admin (admin role required)
 
@@ -222,7 +279,9 @@ docs/           Architecture and domain documentation
 | GET | `/api/admin/settings` | List system settings |
 | PUT | `/api/admin/settings/:key` | Update setting |
 | GET | `/api/admin/audit-log` | Audit log |
-| GET | `/api/admin/health` | System health |
+| GET | `/api/admin/health` | API service health |
+| GET | `/api/admin/export` | Export full instance |
+| POST | `/api/admin/import` | Import full instance |
 
 ### Other
 
@@ -230,3 +289,7 @@ docs/           Architecture and domain documentation
 |--------|------|-------------|
 | GET | `/api/health` | Health check (public, for load balancers) |
 | GET | `/api/docs` | Swagger UI |
+
+## License
+
+[MIT](LICENSE)
