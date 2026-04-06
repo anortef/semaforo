@@ -9,6 +9,7 @@ import type { AdminUpdateSystemSetting } from "../../../application/admin/Update
 import type { AdminListAuditLog } from "../../../application/admin/ListAuditLog.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type pg from "pg";
+import type { UserRepository } from "@semaforo/domain";
 import type { ExportAll } from "../../../application/ExportAll.js";
 import type { ImportAll } from "../../../application/ImportAll.js";
 
@@ -23,6 +24,7 @@ interface AdminRouteDeps {
   listAuditLog: AdminListAuditLog;
   recordAudit: RecordAuditEvent;
   pool: pg.Pool;
+  userRepository: UserRepository;
   exportAll?: ExportAll;
   importAll?: ImportAll;
 }
@@ -163,7 +165,27 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       const limit = parseInt(req.query.limit as string) || 50;
       const offset = parseInt(req.query.offset as string) || 0;
       const result = await deps.listAuditLog.execute({ limit, offset });
-      res.json(result);
+
+      // Resolve user names
+      const userIds = [...new Set(result.entries.map((e) => e.userId))];
+      const userNames = new Map<string, string>();
+      for (const id of userIds) {
+        const user = await deps.userRepository.findById(id);
+        userNames.set(id, user?.name ?? "Unknown");
+      }
+
+      const enriched = result.entries.map((e) => ({
+        id: e.id,
+        userName: userNames.get(e.userId) ?? "Unknown",
+        userId: e.userId,
+        action: e.action,
+        resourceType: e.resourceType,
+        resourceId: e.resourceId,
+        details: e.details,
+        createdAt: e.createdAt,
+      }));
+
+      res.json({ entries: enriched, total: result.total });
     } catch {
       res.status(500).json({ error: "Failed to list audit log" });
     }

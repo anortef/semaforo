@@ -106,6 +106,7 @@ export interface SystemSettingDTO {
 
 export interface AuditLogEntryDTO {
   id: { value: string };
+  userName: string;
   userId: string;
   action: string;
   resourceType: string;

@@ -189,6 +189,7 @@ export function createExpressApp(
     listAuditLog: adminListAuditLog,
     recordAudit,
     pool,
+    userRepository,
     exportAll,
     importAll,
   }));

@@ -29,7 +29,7 @@ export function AdminAuditLogPage() {
                 <th style={{ paddingLeft: "1.25rem" }}>Time</th>
                 <th>Action</th>
                 <th>Resource</th>
-                <th>User ID</th>
+                <th>User</th>
               </tr>
             </thead>
             <tbody>
@@ -42,8 +42,8 @@ export function AdminAuditLogPage() {
                   <td>
                     <span className="badge badge-key">{e.resourceType}:{e.resourceId.slice(0, 8)}</span>
                   </td>
-                  <td style={{ fontSize: "0.75rem", fontFamily: "monospace" }}>
-                    {e.userId.slice(0, 8)}...
+                  <td style={{ fontSize: "0.8125rem" }}>
+                    {e.userName}
                   </td>
                 </tr>
               ))}
