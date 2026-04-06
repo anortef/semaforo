@@ -272,14 +272,16 @@ export function TogglesPage() {
                                 {environments.map((env) => {
                                   const stateKey = `${toggle.id.value}:${env.id.value}`;
                                   const pct = rolloutMap.get(stateKey) ?? 100;
+                                  const envEnabled = toggleStates.get(stateKey) ?? false;
                                   return (
-                                    <div key={env.id.value} className="form-field">
+                                    <div key={env.id.value} className="form-field" style={{ opacity: envEnabled ? 1 : 0.4 }}>
                                       <label>{env.name}</label>
                                       <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
                                         <input
                                           type="number" min={0} max={100} value={pct}
+                                          disabled={!envEnabled}
                                           onChange={(e) => handleRolloutChange(toggle.id.value, env.id.value, parseInt(e.target.value) || 0)}
-                                          style={{ width: "64px", padding: "0.375rem", background: "var(--color-input-bg)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: "0.8125rem", textAlign: "center" }}
+                                          style={{ width: "64px", padding: "0.375rem", background: "var(--color-input-bg)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: envEnabled ? "var(--color-text)" : "var(--color-text-muted)", fontSize: "0.8125rem", textAlign: "center" }}
                                         />
                                         <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>%</span>
                                       </div>
