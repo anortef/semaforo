@@ -5,4 +5,6 @@ export interface AuditLogRepository {
   findAll(params: { limit: number; offset: number }): Promise<AuditLogEntry[]>;
   countAll(): Promise<number>;
   findByUserId(userId: string, params: { limit: number; offset: number }): Promise<AuditLogEntry[]>;
+  findByResourceIds(ids: string[], params: { limit: number; offset: number }): Promise<AuditLogEntry[]>;
+  countByResourceIds(ids: string[]): Promise<number>;
 }

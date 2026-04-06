@@ -32,6 +32,7 @@ import { ExportApp } from "../../application/ExportApp.js";
 import { ExportAll } from "../../application/ExportAll.js";
 import { ImportApp } from "../../application/ImportApp.js";
 import { ImportAll } from "../../application/ImportAll.js";
+import { GetAppAuditLog } from "../../application/GetAppAuditLog.js";
 import { AdminCreateUser } from "../../application/admin/CreateUser.js";
 import { AdminListUsers } from "../../application/admin/ListUsers.js";
 import { AdminUpdateUser } from "../../application/admin/UpdateUser.js";
@@ -93,6 +94,7 @@ export function createExpressApp(
   const getAppMetrics = new GetAppMetrics(appRepository, environmentRepository, toggleRepository, cache, requestCounter, requestCountRepository);
   const exportApp = new ExportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository);
   const importApp = new ImportApp(appRepository, environmentRepository, toggleRepository, toggleValueRepository);
+  const getAppAuditLog = new GetAppAuditLog(appRepository, environmentRepository, toggleRepository, auditLogRepository);
   const exportAll = new ExportAll(appRepository, exportApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, environmentRepository);
   const importAll = new ImportAll(importApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, appRepository, environmentRepository);
   const createEnvironment = new CreateEnvironment(
@@ -198,7 +200,7 @@ export function createExpressApp(
   }));
 
   // Protected routes (require JWT auth)
-  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics, exportApp, importApp, recordAudit));
+  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics, exportApp, importApp, recordAudit, getAppAuditLog, userRepository));
   app.use("/api/apps", auth, appMemberRoutes(addAppMember, removeAppMember, listAppMembersUseCase, userRepository, recordAudit));
   app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));

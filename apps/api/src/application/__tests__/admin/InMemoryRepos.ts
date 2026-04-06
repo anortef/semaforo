@@ -61,4 +61,13 @@ export class InMemoryAuditLogRepository implements AuditLogRepository {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(params.offset, params.offset + params.limit);
   }
+  async findByResourceIds(ids: string[], params: { limit: number; offset: number }): Promise<AuditLogEntry[]> {
+    return this.entries
+      .filter((e) => ids.includes(e.resourceId))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(params.offset, params.offset + params.limit);
+  }
+  async countByResourceIds(ids: string[]): Promise<number> {
+    return this.entries.filter((e) => ids.includes(e.resourceId)).length;
+  }
 }

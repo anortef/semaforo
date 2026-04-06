@@ -32,6 +32,24 @@ export class PgAuditLogRepository implements AuditLogRepository {
     );
     return result.rows.map(toDomain);
   }
+
+  async findByResourceIds(ids: string[], params: { limit: number; offset: number }): Promise<AuditLogEntry[]> {
+    if (ids.length === 0) return [];
+    const result = await this.pool.query(
+      "SELECT * FROM audit_log WHERE resource_id = ANY($1) ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+      [ids, params.limit, params.offset]
+    );
+    return result.rows.map(toDomain);
+  }
+
+  async countByResourceIds(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const result = await this.pool.query(
+      "SELECT COUNT(*)::int AS count FROM audit_log WHERE resource_id = ANY($1)",
+      [ids]
+    );
+    return result.rows[0].count;
+  }
 }
 
 function toDomain(row: Record<string, unknown>): AuditLogEntry {

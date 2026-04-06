@@ -167,6 +167,8 @@ export const api = {
       }),
     metrics: (appId: string) =>
       request<AppMetricsDTO>(`/apps/${appId}/metrics`),
+    auditLog: (appId: string, limit = 50, offset = 0) =>
+      request<{ entries: AuditLogEntryDTO[]; total: number }>(`/apps/${appId}/audit-log?limit=${limit}&offset=${offset}`),
     export: (appId: string) =>
       request<unknown>(`/apps/${appId}/export`),
     import: (data: unknown) =>

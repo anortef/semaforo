@@ -6,6 +6,8 @@ import type { GetAppMetrics } from "../../../application/GetAppMetrics.js";
 import type { ExportApp } from "../../../application/ExportApp.js";
 import type { ImportApp } from "../../../application/ImportApp.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
+import type { GetAppAuditLog } from "../../../application/GetAppAuditLog.js";
+import type { UserRepository } from "@semaforo/domain";
 
 export function appRoutes(
   createApp: CreateApp,
@@ -14,7 +16,9 @@ export function appRoutes(
   getAppMetrics?: GetAppMetrics,
   exportApp?: ExportApp,
   importApp?: ImportApp,
-  audit?: RecordAuditEvent
+  audit?: RecordAuditEvent,
+  getAppAuditLog?: GetAppAuditLog,
+  userRepository?: UserRepository
 ): Router {
   const router = Router();
 
@@ -183,6 +187,38 @@ export function appRoutes(
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Import failed";
         res.status(400).json({ error: msg });
+      }
+    });
+  }
+
+  if (getAppAuditLog && userRepository) {
+    router.get("/:appId/audit-log", async (req, res) => {
+      try {
+        const limit = parseInt(req.query.limit as string) || 50;
+        const offset = parseInt(req.query.offset as string) || 0;
+        const result = await getAppAuditLog.execute({ appId: req.params.appId, limit, offset });
+
+        const actorIds = [...new Set(result.entries.map((e) => e.userId))];
+        const names = new Map<string, string>();
+        for (const id of actorIds) {
+          const user = await userRepository.findById(id);
+          names.set(id, user?.name ?? "Unknown");
+        }
+
+        const enriched = result.entries.map((e) => ({
+          id: e.id,
+          userName: names.get(e.userId) ?? "Unknown",
+          action: e.action,
+          resourceType: e.resourceType,
+          resourceName: e.resourceId,
+          details: e.details,
+          createdAt: e.createdAt,
+        }));
+
+        res.json({ entries: enriched, total: result.total });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Failed to fetch audit log";
+        res.status(msg.includes("not found") ? 404 : 500).json({ error: msg });
       }
     });
   }
