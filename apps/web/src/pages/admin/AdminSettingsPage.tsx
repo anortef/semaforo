@@ -5,6 +5,8 @@ import { useApps } from "../../context/AppsContext.js";
 const KNOWN_SETTINGS = [
   { key: "publicDomain", label: "Public Domain", placeholder: "https://semaforo.example.com" },
   { key: "instanceName", label: "Instance Name", placeholder: "My Semaforo" },
+  { key: "rateLimitPublic", label: "Public Rate Limit (req/min)", placeholder: "100000" },
+  { key: "rateLimitCacheMiss", label: "Cache Miss Rate Limit (req/min)", placeholder: "100" },
 ];
 
 export function AdminSettingsPage() {

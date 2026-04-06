@@ -30,6 +30,7 @@ interface AdminRouteDeps {
   toggleRepository: FeatureToggleRepository;
   exportAll?: ExportAll;
   importAll?: ImportAll;
+  onSettingChanged?: (key: string) => Promise<void>;
 }
 
 export function adminRoutes(deps: AdminRouteDeps): Router {
@@ -148,6 +149,7 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
         key: req.params.key,
         value: req.body.value,
       });
+      await deps.onSettingChanged?.(req.params.key);
       await deps.recordAudit.execute({
         userId: res.locals.userId,
         action: "setting.updated",

@@ -129,6 +129,22 @@ export class NoOpRequestCounter implements RequestCounter {
   async getCurrentCount(): Promise<number> { return 0; }
 }
 
+export class RedisRateLimitConfigCache {
+  constructor(private redis: Redis) {}
+
+  async get(key: string): Promise<string | null> {
+    return this.redis.get(key);
+  }
+
+  async set(key: string, value: string): Promise<void> {
+    await this.redis.set(key, value);
+  }
+
+  async invalidate(key: string): Promise<void> {
+    await this.redis.del(key);
+  }
+}
+
 export class NoOpToggleCache implements ToggleCache {
   async get(): Promise<null> {
     return null;

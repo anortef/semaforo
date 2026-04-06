@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from "express";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
 import type { EnvironmentRepository, AppRepository } from "@semaforo/domain";
 import type { ToggleCache, RequestCounter } from "../../cache/RedisToggleCache.js";
-import { createCacheMissLimiter } from "../middleware/rateLimiter.js";
+import { createCacheMissLimiter, type RateLimitConfigReader } from "../middleware/rateLimiter.js";
 
 function extractApiKey(req: { headers: Record<string, unknown> }): string {
   const header = req.headers["x-api-key"];
@@ -15,10 +15,11 @@ export function publicRoutes(
   environmentRepository?: EnvironmentRepository,
   appRepository?: AppRepository,
   cache?: ToggleCache,
-  requestCounter?: RequestCounter
+  requestCounter?: RequestCounter,
+  rateLimitReader?: RateLimitConfigReader
 ): Router {
   const router = Router();
-  const dbLimiter = createCacheMissLimiter();
+  const dbLimiter = createCacheMissLimiter(rateLimitReader);
 
   if (environmentRepository && appRepository) {
     const handleToggles = async (req: import("express").Request, res: import("express").Response) => {

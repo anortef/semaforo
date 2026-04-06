@@ -59,15 +59,18 @@ import { adminRoutes } from "./routes/adminRoutes.js";
 import { createAuthMiddleware } from "./middleware/authMiddleware.js";
 import { createAdminMiddleware } from "./middleware/adminMiddleware.js";
 import { createApiKeyMiddleware } from "./middleware/apiKeyMiddleware.js";
-import { createLoginLimiter, createPublicLimiter } from "./middleware/rateLimiter.js";
+import { createLoginLimiter, createPublicLimiter, createCacheMissLimiter, createRateLimitConfigReader, type RateLimitConfigReader } from "./middleware/rateLimiter.js";
 import { createSecurityLogger } from "../logging/securityLogger.js";
 import type { RequestCounter } from "../cache/RedisToggleCache.js";
+import { RedisRateLimitConfigCache } from "../cache/RedisToggleCache.js";
 
 export function createExpressApp(
   pool: pg.Pool,
   config: Config,
   cache: ToggleCache,
-  requestCounter?: RequestCounter
+  requestCounter?: RequestCounter,
+  rateLimitReader?: RateLimitConfigReader,
+  onRateLimitSettingChanged?: (key: string) => Promise<void>
 ) {
   const app = express();
 
@@ -152,7 +155,7 @@ export function createExpressApp(
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
   // Public routes (API key required, rate limited)
-  app.use("/api/public", createPublicLimiter(), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter));
+  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader));
 
   // Auth routes (login rate limited)
   app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwt.secret, securityLogger));
@@ -197,6 +200,7 @@ export function createExpressApp(
     toggleRepository,
     exportAll,
     importAll,
+    onSettingChanged: onRateLimitSettingChanged,
   }));
 
   // Protected routes (require JWT auth)
