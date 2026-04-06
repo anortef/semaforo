@@ -65,6 +65,27 @@ describe("GetAppAuditLog", () => {
     expect(result.total).toBe(3);
   });
 
+  it("resolves resource names for app entries", async () => {
+    const result = await useCase.execute({ appId: "app-1", limit: 50, offset: 0 });
+    const appEntry = result.entries.find((e) => e.action === "app.created");
+
+    expect(appEntry!.resourceName).toBe("Shop");
+  });
+
+  it("resolves resource names for toggle entries", async () => {
+    const result = await useCase.execute({ appId: "app-1", limit: 50, offset: 0 });
+    const toggleEntry = result.entries.find((e) => e.action === "toggle.created");
+
+    expect(toggleEntry!.resourceName).toBe("Checkout");
+  });
+
+  it("resolves resource names for environment entries", async () => {
+    const result = await useCase.execute({ appId: "app-1", limit: 50, offset: 0 });
+    const envEntry = result.entries.find((e) => e.action === "environment.created");
+
+    expect(envEntry!.resourceName).toBe("Prod");
+  });
+
   it("throws for non-existent app", async () => {
     await expect(
       useCase.execute({ appId: "nope", limit: 50, offset: 0 })

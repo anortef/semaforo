@@ -6,6 +6,17 @@ import type {
   FeatureToggleRepository,
 } from "@semaforo/domain";
 
+export interface EnrichedAuditEntry {
+  id: { value: string };
+  userId: string;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  resourceName: string;
+  details: string;
+  createdAt: Date;
+}
+
 export class GetAppAuditLog {
   constructor(
     private appRepository: AppRepository,
@@ -18,7 +29,7 @@ export class GetAppAuditLog {
     appId: string;
     limit: number;
     offset: number;
-  }): Promise<{ entries: AuditLogEntry[]; total: number }> {
+  }): Promise<{ entries: EnrichedAuditEntry[]; total: number }> {
     const app = await this.appRepository.findById(params.appId);
     if (!app) throw new Error("App not found");
 
@@ -33,11 +44,28 @@ export class GetAppAuditLog {
       ...toggles.map((t) => t.id.value),
     ];
 
+    // Build name lookup
+    const nameMap = new Map<string, string>();
+    nameMap.set(params.appId, app.name);
+    for (const e of envs) nameMap.set(e.id.value, e.name);
+    for (const t of toggles) nameMap.set(t.id.value, t.name);
+
     const [entries, total] = await Promise.all([
       this.auditLogRepository.findByResourceIds(resourceIds, params),
       this.auditLogRepository.countByResourceIds(resourceIds),
     ]);
 
-    return { entries, total };
+    const enriched = entries.map((e) => ({
+      id: e.id,
+      userId: e.userId,
+      action: e.action,
+      resourceType: e.resourceType,
+      resourceId: e.resourceId,
+      resourceName: nameMap.get(e.resourceId) ?? e.resourceId,
+      details: e.details,
+      createdAt: e.createdAt,
+    }));
+
+    return { entries: enriched, total };
   }
 }

@@ -206,13 +206,8 @@ export function appRoutes(
         }
 
         const enriched = result.entries.map((e) => ({
-          id: e.id,
+          ...e,
           userName: names.get(e.userId) ?? "Unknown",
-          action: e.action,
-          resourceType: e.resourceType,
-          resourceName: e.resourceId,
-          details: e.details,
-          createdAt: e.createdAt,
         }));
 
         res.json({ entries: enriched, total: result.total });
