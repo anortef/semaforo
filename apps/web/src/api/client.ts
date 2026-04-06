@@ -57,6 +57,7 @@ export interface FeatureToggleDTO {
   name: string;
   key: string;
   description: string;
+  type: "boolean" | "string";
 }
 
 export interface ToggleValueDTO {
@@ -64,6 +65,7 @@ export interface ToggleValueDTO {
   toggleId: string;
   environmentId: string;
   enabled: boolean;
+  stringValue: string;
   updatedAt: string;
 }
 
@@ -204,7 +206,7 @@ export const api = {
       request<FeatureToggleDTO[]>(`/apps/${appId}/toggles`),
     create: (
       appId: string,
-      data: { name: string; key: string; description?: string }
+      data: { name: string; key: string; description?: string; type?: string }
     ) =>
       request<FeatureToggleDTO>(`/apps/${appId}/toggles`, {
         method: "POST",
@@ -216,12 +218,12 @@ export const api = {
       ),
     getValues: (appId: string) =>
       request<ToggleValueDTO[]>(`/apps/${appId}/toggle-values`),
-    setValue: (toggleId: string, environmentId: string, enabled: boolean) =>
+    setValue: (toggleId: string, environmentId: string, data: { enabled?: boolean; stringValue?: string }) =>
       request<ToggleValueDTO>(
         `/toggles/${toggleId}/environments/${environmentId}`,
         {
           method: "PUT",
-          body: JSON.stringify({ enabled }),
+          body: JSON.stringify(data),
         }
       ),
   },

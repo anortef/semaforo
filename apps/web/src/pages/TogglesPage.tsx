@@ -16,8 +16,12 @@ export function TogglesPage() {
   const [toggleStates, setToggleStates] = useState<
     Map<string, boolean>
   >(new Map());
+  const [stringValues, setStringValues] = useState<
+    Map<string, string>
+  >(new Map());
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
+  const [toggleType, setToggleType] = useState<"boolean" | "string">("boolean");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [selectedEnvKey, setSelectedEnvKey] = useState("");
@@ -26,21 +30,27 @@ export function TogglesPage() {
 
   const loadToggleStates = useCallback(async () => {
     if (!app) return;
-    const stateMap = new Map<string, boolean>();
+    const boolMap = new Map<string, boolean>();
+    const strMap = new Map<string, string>();
     for (const env of environments) {
       try {
         const states = await api.toggles.getStates(app.key, env.key);
-        for (const [toggleKey, enabled] of Object.entries(states)) {
+        for (const [toggleKey, value] of Object.entries(states)) {
           const toggle = toggles.find((t) => t.key === toggleKey);
-          if (toggle) {
-            stateMap.set(`${toggle.id.value}:${env.id.value}`, enabled);
+          if (!toggle) continue;
+          const stateKey = `${toggle.id.value}:${env.id.value}`;
+          if (typeof value === "string") {
+            strMap.set(stateKey, value);
+          } else {
+            boolMap.set(stateKey, value);
           }
         }
       } catch {
-        // ignore fetch errors
+        // ignore
       }
     }
-    setToggleStates(stateMap);
+    setToggleStates(boolMap);
+    setStringValues(strMap);
   }, [app, environments, toggles]);
 
   useEffect(() => {
@@ -80,10 +90,11 @@ export function TogglesPage() {
     if (!appId) return;
     setError("");
     try {
-      const toggle = await api.toggles.create(appId, { name, key });
+      const toggle = await api.toggles.create(appId, { name, key, type: toggleType });
       setToggles((prev) => [...prev, toggle]);
       setName("");
       setKey("");
+      setToggleType("boolean");
       setShowForm(false);
     } catch (err) {
       setError(
@@ -103,7 +114,7 @@ export function TogglesPage() {
       return next;
     });
     try {
-      const result = await api.toggles.setValue(toggleId, envId, enabled);
+      const result = await api.toggles.setValue(toggleId, envId, { enabled });
       setUpdatedAtMap((prev) => new Map(prev).set(`${toggleId}:${envId}`, result.updatedAt));
     } catch {
       setToggleStates((prev) => {
@@ -111,6 +122,22 @@ export function TogglesPage() {
         next.set(`${toggleId}:${envId}`, !enabled);
         return next;
       });
+    }
+  }
+
+  async function handleStringChange(toggleId: string, envId: string, stringValue: string) {
+    const stateKey = `${toggleId}:${envId}`;
+    setStringValues((prev) => new Map(prev).set(stateKey, stringValue));
+  }
+
+  async function handleStringSave(toggleId: string, envId: string) {
+    const stateKey = `${toggleId}:${envId}`;
+    const stringValue = stringValues.get(stateKey) ?? "";
+    try {
+      const result = await api.toggles.setValue(toggleId, envId, { stringValue });
+      setUpdatedAtMap((prev) => new Map(prev).set(stateKey, result.updatedAt));
+    } catch {
+      // ignore
     }
   }
 
@@ -173,6 +200,17 @@ export function TogglesPage() {
                   onChange={(e) => setKey(e.target.value)}
                   required
                 />
+              </div>
+              <div className="form-field">
+                <label>Type</label>
+                <select
+                  value={toggleType}
+                  onChange={(e) => setToggleType(e.target.value as "boolean" | "string")}
+                  style={{ padding: "0.5rem", background: "var(--color-input-bg)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)" }}
+                >
+                  <option value="boolean">Boolean</option>
+                  <option value="string">String</option>
+                </select>
               </div>
               <button className="btn btn-primary" type="submit">Create</button>
             </div>
@@ -271,26 +309,41 @@ ${toggles.map((t) => {
                     <td style={{ paddingLeft: "1.25rem" }}>
                       <div style={{ fontWeight: 500 }}>{toggle.name}</div>
                       <span className="badge badge-key">{toggle.key}</span>
+                      {toggle.type === "string" && (
+                        <span className="badge badge-env" style={{ marginLeft: "0.375rem", fontSize: "0.625rem" }}>string</span>
+                      )}
                     </td>
                     {environments.map((env) => {
                       const stateKey = `${toggle.id.value}:${env.id.value}`;
                       const isEnabled = toggleStates.get(stateKey) ?? false;
                       return (
                         <td key={env.id.value} style={{ textAlign: "center", verticalAlign: "middle" }}>
-                          <label className="toggle-switch">
-                            <input
-                              type="checkbox"
-                              checked={isEnabled}
-                              onChange={(e) =>
-                                handleToggle(
-                                  toggle.id.value,
-                                  env.id.value,
-                                  e.target.checked
-                                )
-                              }
-                            />
-                            <span className="toggle-slider" />
-                          </label>
+                          {toggle.type === "string" ? (
+                            <div style={{ display: "flex", gap: "0.25rem", alignItems: "center", justifyContent: "center" }}>
+                              <input
+                                style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", background: "var(--color-input-bg)", border: "1px solid var(--color-border)", borderRadius: "4px", color: "var(--color-text)", width: "120px" }}
+                                value={stringValues.get(stateKey) ?? ""}
+                                onChange={(e) => handleStringChange(toggle.id.value, env.id.value, e.target.value)}
+                                onBlur={() => handleStringSave(toggle.id.value, env.id.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleStringSave(toggle.id.value, env.id.value); }}
+                              />
+                            </div>
+                          ) : (
+                            <label className="toggle-switch">
+                              <input
+                                type="checkbox"
+                                checked={isEnabled}
+                                onChange={(e) =>
+                                  handleToggle(
+                                    toggle.id.value,
+                                    env.id.value,
+                                    e.target.checked
+                                  )
+                                }
+                              />
+                              <span className="toggle-slider" />
+                            </label>
+                          )}
                           {updatedAtMap.get(stateKey) && (
                             <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}
                               title={new Date(updatedAtMap.get(stateKey)!).toLocaleString()}>

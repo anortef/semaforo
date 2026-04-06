@@ -3,6 +3,7 @@ import {
   type FeatureToggle,
   type AppRepository,
   type FeatureToggleRepository,
+  type ToggleType,
 } from "@semaforo/domain";
 import { v4 as uuid } from "uuid";
 
@@ -17,6 +18,7 @@ export class CreateFeatureToggle {
     name: string;
     key: string;
     description?: string;
+    type?: ToggleType;
   }): Promise<FeatureToggle> {
     const app = await this.appRepository.findById(params.appId);
     if (!app) {
@@ -39,6 +41,7 @@ export class CreateFeatureToggle {
       name: params.name,
       key: params.key,
       description: params.description,
+      type: params.type,
     });
 
     await this.toggleRepository.save(toggle);

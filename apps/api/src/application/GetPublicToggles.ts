@@ -19,8 +19,7 @@ export class GetPublicToggles {
     appKey: string;
     envKey: string;
     toggleKey?: string;
-  }): Promise<Record<string, boolean>> {
-    // Try cache first (only for full map, not filtered)
+  }): Promise<Record<string, boolean | string>> {
     if (!params.toggleKey) {
       const cached = await this.cache.get(params.appKey, params.envKey);
       if (cached) return cached;
@@ -44,20 +43,26 @@ export class GetPublicToggles {
       environment.id.value
     );
 
-    const valueMap = new Map(values.map((v) => [v.toggleId, v.enabled]));
+    const valueByToggleId = new Map(values.map((v) => [v.toggleId, v]));
 
     if (params.toggleKey) {
       const toggle = toggles.find((t) => t.key === params.toggleKey);
-      const enabled = toggle ? (valueMap.get(toggle.id.value) ?? false) : false;
-      return { [params.toggleKey]: enabled };
+      if (!toggle) return { [params.toggleKey]: false };
+      const tv = valueByToggleId.get(toggle.id.value);
+      const val = toggle.type === "string"
+        ? (tv?.stringValue ?? "")
+        : (tv?.enabled ?? false);
+      return { [params.toggleKey]: val };
     }
 
-    const result: Record<string, boolean> = {};
+    const result: Record<string, boolean | string> = {};
     for (const toggle of toggles) {
-      result[toggle.key] = valueMap.get(toggle.id.value) ?? false;
+      const tv = valueByToggleId.get(toggle.id.value);
+      result[toggle.key] = toggle.type === "string"
+        ? (tv?.stringValue ?? "")
+        : (tv?.enabled ?? false);
     }
 
-    // Cache the full result
     await this.cache.set(
       params.appKey,
       params.envKey,

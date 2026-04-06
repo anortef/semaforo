@@ -14,6 +14,7 @@ export { createFeatureToggle } from "./entities/FeatureToggle.js";
 export type {
   FeatureToggle,
   FeatureToggleId,
+  ToggleType,
 } from "./entities/FeatureToggle.js";
 
 export { createToggleValue, updateToggleValue } from "./entities/ToggleValue.js";

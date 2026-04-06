@@ -123,6 +123,7 @@ export function toggleRoutes(
         name: req.body.name,
         key: req.body.key,
         description: req.body.description,
+        type: req.body.type,
       });
       audit?.execute({
         userId: res.locals.userId,
@@ -193,10 +194,14 @@ export function toggleRoutes(
         toggleId: req.params.toggleId,
         environmentId: req.params.environmentId,
         enabled: req.body.enabled,
+        stringValue: req.body.stringValue,
       });
+      const action = req.body.stringValue !== undefined
+        ? "toggle.value_changed"
+        : (req.body.enabled ? "toggle.enabled" : "toggle.disabled");
       audit?.execute({
         userId: res.locals.userId,
-        action: req.body.enabled ? "toggle.enabled" : "toggle.disabled",
+        action,
         resourceType: "toggle",
         resourceId: req.params.toggleId,
         details: JSON.stringify({ environmentId: req.params.environmentId, enabled: req.body.enabled }),

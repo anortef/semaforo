@@ -22,7 +22,8 @@ export class SetToggleValue {
   async execute(params: {
     toggleId: string;
     environmentId: string;
-    enabled: boolean;
+    enabled?: boolean;
+    stringValue?: string;
   }): Promise<ToggleValue> {
     const toggle = await this.toggleRepository.findById(params.toggleId);
     if (!toggle) {
@@ -49,7 +50,10 @@ export class SetToggleValue {
     let result: ToggleValue;
 
     if (existing) {
-      result = updateToggleValue(existing, params.enabled);
+      result = updateToggleValue(existing, {
+        enabled: params.enabled,
+        stringValue: params.stringValue,
+      });
       await this.toggleValueRepository.save(result);
     } else {
       result = createToggleValue({
@@ -57,6 +61,7 @@ export class SetToggleValue {
         toggleId: params.toggleId,
         environmentId: params.environmentId,
         enabled: params.enabled,
+        stringValue: params.stringValue,
       });
       await this.toggleValueRepository.save(result);
     }

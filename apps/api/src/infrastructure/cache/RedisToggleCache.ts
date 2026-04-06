@@ -6,18 +6,18 @@ export interface CacheInfo {
 }
 
 export interface ToggleCache {
-  get(appKey: string, envKey: string): Promise<Record<string, boolean> | null>;
+  get(appKey: string, envKey: string): Promise<Record<string, boolean | string> | null>;
   set(
     appKey: string,
     envKey: string,
-    toggles: Record<string, boolean>,
+    toggles: Record<string, boolean | string>,
     ttlSeconds: number
   ): Promise<void>;
   invalidate(appKey: string, envKey: string): Promise<void>;
-  getByApiKey(apiKey: string): Promise<Record<string, boolean> | null>;
+  getByApiKey(apiKey: string): Promise<Record<string, boolean | string> | null>;
   setByApiKey(
     apiKey: string,
-    toggles: Record<string, boolean>,
+    toggles: Record<string, boolean | string>,
     ttlSeconds: number
   ): Promise<void>;
   getCacheInfo(appKey: string, envKey: string): Promise<CacheInfo | null>;
@@ -33,7 +33,7 @@ export class RedisToggleCache implements ToggleCache {
   async get(
     appKey: string,
     envKey: string
-  ): Promise<Record<string, boolean> | null> {
+  ): Promise<Record<string, boolean | string> | null> {
     const data = await this.redis.get(this.cacheKey(appKey, envKey));
     if (!data) return null;
     return JSON.parse(data);
@@ -42,7 +42,7 @@ export class RedisToggleCache implements ToggleCache {
   async set(
     appKey: string,
     envKey: string,
-    toggles: Record<string, boolean>,
+    toggles: Record<string, boolean | string>,
     ttlSeconds: number
   ): Promise<void> {
     if (ttlSeconds <= 0) return;
@@ -63,7 +63,7 @@ export class RedisToggleCache implements ToggleCache {
     }
   }
 
-  async getByApiKey(apiKey: string): Promise<Record<string, boolean> | null> {
+  async getByApiKey(apiKey: string): Promise<Record<string, boolean | string> | null> {
     const data = await this.redis.get(`toggles:apikey:${apiKey}`);
     if (!data) return null;
     return JSON.parse(data);
@@ -71,7 +71,7 @@ export class RedisToggleCache implements ToggleCache {
 
   async setByApiKey(
     apiKey: string,
-    toggles: Record<string, boolean>,
+    toggles: Record<string, boolean | string>,
     ttlSeconds: number
   ): Promise<void> {
     if (ttlSeconds <= 0) return;

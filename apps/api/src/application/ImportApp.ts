@@ -17,7 +17,8 @@ export interface AppExport {
     name: string;
     key: string;
     description?: string;
-    values: Record<string, boolean>;
+    type?: string;
+    values: Record<string, boolean | string>;
   }>;
 }
 
@@ -62,17 +63,19 @@ export class ImportApp {
         name: toggleData.name,
         key: toggleData.key,
         description: toggleData.description,
+        type: toggleData.type as "boolean" | "string" | undefined,
       });
       await this.toggleRepository.save(toggle);
 
-      for (const [envKey, enabled] of Object.entries(toggleData.values)) {
+      for (const [envKey, value] of Object.entries(toggleData.values)) {
         const envId = envIdByKey.get(envKey);
         if (!envId) continue;
         const tv = createToggleValue({
           id: uuid(),
           toggleId: toggle.id.value,
           environmentId: envId,
-          enabled,
+          enabled: typeof value === "boolean" ? value : false,
+          stringValue: typeof value === "string" ? value : undefined,
         });
         await this.toggleValueRepository.save(tv);
       }

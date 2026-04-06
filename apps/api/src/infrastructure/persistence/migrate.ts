@@ -85,6 +85,8 @@ const MIGRATIONS = [
     window_end TIMESTAMPTZ NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_request_counts_env_window ON request_counts(environment_id, window_end DESC)`,
+  `ALTER TABLE feature_toggles ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'boolean'`,
+  `ALTER TABLE toggle_values ADD COLUMN IF NOT EXISTS string_value TEXT NOT NULL DEFAULT ''`,
 ];
 
 async function migrate() {

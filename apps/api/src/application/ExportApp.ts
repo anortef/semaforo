@@ -12,7 +12,8 @@ export interface AppExportData {
     name: string;
     key: string;
     description: string;
-    values: Record<string, boolean>;
+    type: string;
+    values: Record<string, boolean | string>;
   }>;
   exportedAt: string;
 }
@@ -36,18 +37,21 @@ export class ExportApp {
 
     const toggleExports = await Promise.all(
       toggles.map(async (toggle) => {
-        const values: Record<string, boolean> = {};
+        const values: Record<string, boolean | string> = {};
         for (const env of envs) {
           const tv = await this.toggleValueRepository.findByToggleAndEnvironment(
             toggle.id.value,
             env.id.value
           );
-          values[env.key] = tv?.enabled ?? false;
+          values[env.key] = toggle.type === "string"
+            ? (tv?.stringValue ?? "")
+            : (tv?.enabled ?? false);
         }
         return {
           name: toggle.name,
           key: toggle.key,
           description: toggle.description,
+          type: toggle.type,
           values,
         };
       })
