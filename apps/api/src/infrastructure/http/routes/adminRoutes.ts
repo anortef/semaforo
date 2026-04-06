@@ -227,11 +227,25 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       await deps.pool.query("SELECT 1");
       const userCount = await deps.pool.query("SELECT COUNT(*)::int AS count FROM users");
       const appCount = await deps.pool.query("SELECT COUNT(*)::int AS count FROM apps");
+      const mem = process.memoryUsage();
+      const cpus = (await import("node:os")).cpus();
+      const cpuUsage = process.cpuUsage();
       res.json({
         database: "ok",
         users: userCount.rows[0].count,
         apps: appCount.rows[0].count,
         uptime: process.uptime(),
+        memory: {
+          rss: mem.rss,
+          heapUsed: mem.heapUsed,
+          heapTotal: mem.heapTotal,
+          external: mem.external,
+        },
+        cpu: {
+          user: cpuUsage.user,
+          system: cpuUsage.system,
+          cores: cpus.length,
+        },
       });
     } catch {
       res.status(503).json({ database: "error" });
