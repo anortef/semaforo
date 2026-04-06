@@ -17,6 +17,9 @@ export interface Config {
   jwt: {
     secret: string;
   };
+  encryption: {
+    key: string;
+  };
 }
 
 function requireEnv(name: string): string {
@@ -46,6 +49,9 @@ export function loadConfig(): Config {
     },
     jwt: {
       secret: requireEnv("JWT_SECRET"),
+    },
+    encryption: {
+      key: process.env.ENCRYPTION_KEY ?? "",
     },
   };
 }

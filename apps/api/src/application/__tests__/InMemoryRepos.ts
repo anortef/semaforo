@@ -4,8 +4,12 @@ import type {
   FeatureToggle, FeatureToggleRepository,
   ToggleValue, ToggleValueRepository,
   ApiKey, ApiKeyRepository,
+  Secret, SecretRepository,
+  SecretValue, SecretValueRepository,
 } from "@semaforo/domain";
 import type { ToggleCache } from "../../infrastructure/cache/RedisToggleCache.js";
+import type { SecretCache } from "../../infrastructure/cache/SecretCache.js";
+import type { EncryptionService } from "../../infrastructure/crypto/EncryptionService.js";
 
 export class InMemoryAppRepository implements AppRepository {
   apps: App[] = [];
@@ -82,4 +86,51 @@ export class SpyToggleCache implements ToggleCache {
   async getByApiKey() { return null; }
   async setByApiKey() {}
   async getCacheInfo() { return null; }
+}
+
+export class InMemorySecretRepository implements SecretRepository {
+  secrets: Secret[] = [];
+  async findById(id: string) { return this.secrets.find((s) => s.id.value === id) ?? null; }
+  async findByAppId(appId: string) { return this.secrets.filter((s) => s.appId === appId); }
+  async findByAppIdAndKey(appId: string, key: string) {
+    return this.secrets.find((s) => s.appId === appId && s.key === key) ?? null;
+  }
+  async save(secret: Secret) {
+    const idx = this.secrets.findIndex((s) => s.id.value === secret.id.value);
+    if (idx >= 0) this.secrets[idx] = secret; else this.secrets.push(secret);
+  }
+  async delete(id: string) { this.secrets = this.secrets.filter((s) => s.id.value !== id); }
+}
+
+export class InMemorySecretValueRepository implements SecretValueRepository {
+  values: SecretValue[] = [];
+  async findBySecretAndEnvironment(secretId: string, envId: string) {
+    return this.values.find((v) => v.secretId === secretId && v.environmentId === envId) ?? null;
+  }
+  async findByEnvironmentId(envId: string) {
+    return this.values.filter((v) => v.environmentId === envId);
+  }
+  async findBySecretId(secretId: string) {
+    return this.values.filter((v) => v.secretId === secretId);
+  }
+  async save(value: SecretValue) {
+    const idx = this.values.findIndex((v) => v.id.value === value.id.value);
+    if (idx >= 0) this.values[idx] = value; else this.values.push(value);
+  }
+  async delete(id: string) { this.values = this.values.filter((v) => v.id.value !== id); }
+}
+
+export class SpySecretCache implements SecretCache {
+  invalidated: string[] = [];
+  data = new Map<string, Record<string, string>>();
+  async get(appKey: string, envKey: string) { return this.data.get(`${appKey}:${envKey}`) ?? null; }
+  async set(appKey: string, envKey: string, secrets: Record<string, string>) {
+    this.data.set(`${appKey}:${envKey}`, secrets);
+  }
+  async invalidate(appKey: string, envKey: string) { this.invalidated.push(`${appKey}:${envKey}`); this.data.delete(`${appKey}:${envKey}`); }
+}
+
+export class FakeEncryptionService implements EncryptionService {
+  encrypt(plaintext: string): string { return Buffer.from(plaintext).toString("base64"); }
+  decrypt(encrypted: string): string { return Buffer.from(encrypted, "base64").toString("utf8"); }
 }

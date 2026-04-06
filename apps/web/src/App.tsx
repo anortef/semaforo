@@ -8,6 +8,7 @@ import { AppsPage } from "./pages/AppsPage.js";
 import { TogglesPage } from "./pages/TogglesPage.js";
 import { EnvironmentsPage } from "./pages/EnvironmentsPage.js";
 import { StringValuesPage } from "./pages/StringValuesPage.js";
+import { SecretsPage } from "./pages/SecretsPage.js";
 import { LoginPage } from "./pages/LoginPage.js";
 import { AppSettingsPage } from "./pages/AppSettingsPage.js";
 import { AppMetricsPage } from "./pages/AppMetricsPage.js";
@@ -34,6 +35,7 @@ function ProtectedRoutes() {
         <Route path="/" element={<AppsPage />} />
         <Route path="/apps/:appId/toggles" element={<TogglesPage />} />
         <Route path="/apps/:appId/string-values" element={<StringValuesPage />} />
+        <Route path="/apps/:appId/secrets" element={<SecretsPage />} />
         <Route path="/apps/:appId/environments" element={<EnvironmentsPage />} />
         <Route path="/apps/:appId/settings" element={<AppSettingsPage />} />
         <Route path="/apps/:appId/metrics" element={<AppMetricsPage />} />

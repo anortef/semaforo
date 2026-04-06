@@ -88,6 +88,22 @@ const MIGRATIONS = [
   `ALTER TABLE feature_toggles ADD COLUMN IF NOT EXISTS type TEXT NOT NULL DEFAULT 'boolean'`,
   `ALTER TABLE toggle_values ADD COLUMN IF NOT EXISTS string_value TEXT NOT NULL DEFAULT ''`,
   `ALTER TABLE toggle_values ADD COLUMN IF NOT EXISTS rollout_percentage INTEGER NOT NULL DEFAULT 100`,
+  `CREATE TABLE IF NOT EXISTS secrets (
+    id TEXT PRIMARY KEY,
+    app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE,
+    key TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(app_id, key)
+  )`,
+  `CREATE TABLE IF NOT EXISTS secret_values (
+    id TEXT PRIMARY KEY,
+    secret_id TEXT NOT NULL REFERENCES secrets(id) ON DELETE CASCADE,
+    environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE,
+    encrypted_value TEXT NOT NULL DEFAULT '',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(secret_id, environment_id)
+  )`,
 ];
 
 async function migrate() {

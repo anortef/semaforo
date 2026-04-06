@@ -2,6 +2,7 @@ import Redis from "ioredis";
 import { loadConfig } from "./infrastructure/config/env.js";
 import { createPool } from "./infrastructure/persistence/database.js";
 import { RedisToggleCache, RedisRequestCounter, RedisRateLimitConfigCache } from "./infrastructure/cache/RedisToggleCache.js";
+import { RedisSecretCache } from "./infrastructure/cache/SecretCache.js";
 import { createExpressApp } from "./infrastructure/http/app.js";
 import { PgUserRepository } from "./infrastructure/persistence/PgUserRepository.js";
 import { PgRequestCountRepository } from "./infrastructure/persistence/PgRequestCountRepository.js";
@@ -14,6 +15,7 @@ const config = loadConfig();
 const pool = createPool(config.database);
 const redis = new Redis({ host: config.redis.host, port: config.redis.port });
 const cache = new RedisToggleCache(redis);
+const secretCache = new RedisSecretCache(redis);
 const requestCounter = new RedisRequestCounter(redis);
 const rateLimitCache = new RedisRateLimitConfigCache(redis);
 const settingRepo = new PgSystemSettingRepository(pool);
@@ -25,7 +27,7 @@ const app = createExpressApp(pool, config, cache, requestCounter, rateLimitReade
   };
   const redisKey = keyMap[key];
   if (redisKey) await rateLimitCache.invalidate(redisKey);
-});
+}, secretCache);
 
 const userRepository = new PgUserRepository(pool);
 const seedDefaultUser = new SeedDefaultUser(userRepository);

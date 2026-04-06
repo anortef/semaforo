@@ -4,3 +4,4 @@
 export const APP_KEY_PATTERN = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
 export const ENV_KEY_PATTERN = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
 export const TOGGLE_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9]*$/;
+export const SECRET_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9]*$/;

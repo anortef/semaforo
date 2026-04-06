@@ -43,3 +43,12 @@ export type { SystemSettingRepository } from "./repositories/SystemSettingReposi
 export type { AuditLogRepository } from "./repositories/AuditLogRepository.js";
 export type { AppMemberRepository } from "./repositories/AppMemberRepository.js";
 export type { RequestCountRepository } from "./repositories/RequestCountRepository.js";
+
+export { createSecret } from "./entities/Secret.js";
+export type { Secret, SecretId } from "./entities/Secret.js";
+
+export { createSecretValue, updateSecretValue } from "./entities/SecretValue.js";
+export type { SecretValue, SecretValueId } from "./entities/SecretValue.js";
+
+export type { SecretRepository } from "./repositories/SecretRepository.js";
+export type { SecretValueRepository } from "./repositories/SecretValueRepository.js";

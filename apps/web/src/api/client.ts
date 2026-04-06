@@ -120,6 +120,26 @@ export interface AuditLogEntryDTO {
   createdAt: string;
 }
 
+export interface SecretDTO {
+  id: { value: string };
+  appId: string;
+  key: string;
+  description: string;
+}
+
+export interface MaskedSecretValueDTO {
+  secretId: string;
+  environmentId: string;
+  maskedValue: string;
+  updatedAt: string;
+}
+
+export interface RevealedSecretValueDTO {
+  secretId: string;
+  environmentId: string;
+  value: string;
+}
+
 export interface RequestMetricsDTO {
   current: number;
   last5m: number;
@@ -252,6 +272,34 @@ export const api = {
       request<void>(`/api-keys/${keyId}`, {
         method: "DELETE",
       }),
+  },
+  secrets: {
+    list: (appId: string) =>
+      request<SecretDTO[]>(`/apps/${appId}/secrets`),
+    create: (appId: string, data: { key: string; description?: string }) =>
+      request<SecretDTO>(`/apps/${appId}/secrets`, {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    delete: (secretId: string) =>
+      request<void>(`/secrets/${secretId}`, { method: "DELETE" }),
+    setValue: (secretId: string, environmentId: string, value: string) =>
+      request<{ updated: boolean }>(
+        `/secrets/${secretId}/environments/${environmentId}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ value }),
+        }
+      ),
+    getMasked: (secretId: string, environmentId: string) =>
+      request<MaskedSecretValueDTO>(
+        `/secrets/${secretId}/environments/${environmentId}`
+      ),
+    reveal: (secretId: string, environmentId: string) =>
+      request<RevealedSecretValueDTO>(
+        `/secrets/${secretId}/environments/${environmentId}/reveal`,
+        { method: "POST" }
+      ),
   },
   admin: {
     users: {

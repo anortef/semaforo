@@ -1,27 +1,38 @@
 # Semaforo
 
-Feature toggle management platform with A/B testing, string values, per-app access control, request metrics, and an admin panel.
+Feature toggle management platform with A/B testing, string values, encrypted secrets, per-app access control, request metrics, and an admin panel.
 
 ## Quick Start
 
 ```bash
-docker compose up
+./start.sh
 ```
 
-This starts:
+This generates a `.env` file with random secrets (if missing) and starts all services in detached mode.
+
+Alternatively, start manually:
+
+```bash
+docker compose up -d
+```
+
+Services:
 - **API** at http://localhost:3001
 - **Web UI** at http://localhost:5173
 - **PostgreSQL** at localhost:5432
 - **Redis** at localhost:6379
 
-### Required Environment Variables
+### Environment Variables
 
-| Variable | Description | Docker default |
-|----------|-------------|----------------|
-| `JWT_SECRET` | Secret for signing JWT tokens | `semaforo-dev-secret` |
-| `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:5173` |
+Configured via `.env` file (created automatically by `start.sh`):
 
-Both are **required** — the API will fail to start without them.
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `JWT_SECRET` | Secret for signing JWT tokens | Yes |
+| `ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM secret encryption | No (secrets feature disabled without it) |
+| `CORS_ORIGIN` | Allowed CORS origin | Yes (defaults to `http://localhost:5173` in docker-compose) |
+
+`JWT_SECRET` and `CORS_ORIGIN` are **required** — the API will fail to start without them. `ENCRYPTION_KEY` is optional — if omitted, the secrets feature is simply unavailable.
 
 ## Default Credentials
 
@@ -39,6 +50,26 @@ On/off switches per environment. Manage via the Toggles page — grid of toggle 
 
 ### String Values
 Configurable text values per environment (e.g., banner messages, feature labels). Managed on a dedicated String Values page with per-environment inputs and a Save button.
+
+### Encrypted Secrets
+Per-environment encrypted secrets (e.g., database passwords, API tokens). Values are encrypted at rest with AES-256-GCM using a master key. Each encryption uses a unique IV.
+
+- **Admin UI**: Secrets page per app — create secrets, set values per environment, masked display with a Reveal button
+- **Reveal is audit-logged** — every reveal action is recorded in the audit log
+- **Public API**: Client apps fetch decrypted secrets via API key, same pattern as toggles
+
+```bash
+curl /api/public/apps/my-app/environments/prod/secrets \
+  -H "x-api-key: sk_your_key_here"
+```
+
+Response:
+```json
+{
+  "databasePassword": "s3cret",
+  "stripeApiKey": "sk_live_..."
+}
+```
 
 ### A/B Testing
 Per-toggle, per-environment rollout percentages (0-100%). Click "A/B Testing" on any boolean toggle to expand the rollout configuration. Set a percentage per environment and click "Apply".
@@ -144,6 +175,7 @@ Available at `/admin` in the web UI (admin role required).
 ## Security
 
 - JWT authentication with configurable secret (required, no default)
+- AES-256-GCM encryption for secrets at rest (unique IV per value, 32-byte master key)
 - bcrypt password hashing (10 salt rounds)
 - Two-tier rate limiting: generous for cached responses (configurable, default 100k/min), strict for DB hits (configurable, default 100/min)
 - Rate limits configurable via admin settings, stored in Postgres, served from Redis
@@ -158,7 +190,7 @@ Available at `/admin` in the web UI (admin role required).
 ### With Docker (recommended)
 
 ```bash
-docker compose up
+./start.sh
 ```
 
 Source code is mounted as volumes — changes reload automatically.
@@ -171,6 +203,7 @@ npm run build --workspace=@semaforo/domain
 
 # Start API (requires local PostgreSQL and Redis)
 JWT_SECRET=dev-secret CORS_ORIGIN=http://localhost:5173 \
+  ENCRYPTION_KEY=$(openssl rand -hex 32) \
   npm run dev --workspace=@semaforo/api
 
 # Start Web
@@ -242,6 +275,17 @@ docs/           Architecture and domain documentation
 | PUT | `/api/toggles/:toggleId/environments/:envId` | Set value (enabled, stringValue, rolloutPercentage) |
 | GET | `/api/apps/:appId/toggle-values` | All toggle values with timestamps |
 
+### Secrets
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/apps/:appId/secrets` | List secrets (metadata only) |
+| POST | `/api/apps/:appId/secrets` | Create secret |
+| DELETE | `/api/secrets/:secretId` | Delete secret |
+| PUT | `/api/secrets/:secretId/environments/:envId` | Set secret value (encrypted) |
+| GET | `/api/secrets/:secretId/environments/:envId` | Get masked value |
+| POST | `/api/secrets/:secretId/environments/:envId/reveal` | Reveal full value (audit-logged) |
+
 ### API Keys (per environment)
 
 | Method | Path | Description |
@@ -266,6 +310,7 @@ docs/           Architecture and domain documentation
 | GET | `/api/public/toggles/:toggleKey` | Get single toggle |
 | GET | `/api/public/apps/:appKey/environments/:envKey/toggles` | Get toggles (full path) |
 | GET | `/api/public/apps/:appKey/environments/:envKey/toggles/:toggleKey` | Get single toggle (full path) |
+| GET | `/api/public/apps/:appKey/environments/:envKey/secrets` | Get decrypted secrets |
 
 ### Admin (admin role required)
 

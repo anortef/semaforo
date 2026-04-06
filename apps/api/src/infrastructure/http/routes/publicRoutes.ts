@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from "express";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
+import type { GetPublicSecrets } from "../../../application/GetPublicSecrets.js";
 import type { EnvironmentRepository, AppRepository } from "@semaforo/domain";
 import type { ToggleCache, RequestCounter } from "../../cache/RedisToggleCache.js";
 import { createCacheMissLimiter, type RateLimitConfigReader } from "../middleware/rateLimiter.js";
@@ -16,7 +17,8 @@ export function publicRoutes(
   appRepository?: AppRepository,
   cache?: ToggleCache,
   requestCounter?: RequestCounter,
-  rateLimitReader?: RateLimitConfigReader
+  rateLimitReader?: RateLimitConfigReader,
+  getPublicSecrets?: GetPublicSecrets
 ): Router {
   const router = Router();
   const dbLimiter = createCacheMissLimiter(rateLimitReader);
@@ -119,6 +121,35 @@ export function publicRoutes(
   router.get("/apps/:appKey/environments/:envKey/toggles", ...handleFullPath);
   router.get("/apps/:appKey/environments/:envKey/toggles/:toggleKey", ...handleFullPath
   );
+
+  if (getPublicSecrets) {
+    const handleSecrets = [
+      (req: import("express").Request, res: import("express").Response, next: import("express").NextFunction) => {
+        const environmentId = res.locals.apiKeyEnvironmentId as string;
+        if (environmentId) requestCounter?.increment(environmentId);
+        dbLimiter(req, res, next);
+      },
+      async (req: import("express").Request, res: import("express").Response) => {
+        try {
+          const secrets = await getPublicSecrets.execute({
+            appKey: req.params.appKey,
+            envKey: req.params.envKey,
+          });
+          res.json(secrets);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Internal server error";
+          if (message.includes("not found")) {
+            res.status(404).json({ error: message });
+          } else {
+            res.status(500).json({ error: "Internal server error" });
+          }
+        }
+      },
+    ] as import("express").RequestHandler[];
+
+    router.get("/apps/:appKey/environments/:envKey/secrets", ...handleSecrets);
+  }
 
   return router;
 }

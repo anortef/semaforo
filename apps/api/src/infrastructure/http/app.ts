@@ -45,10 +45,20 @@ import { RecordAuditEvent } from "../../application/admin/RecordAuditEvent.js";
 import { PgAppMemberRepository } from "../persistence/PgAppMemberRepository.js";
 import { PgSystemSettingRepository } from "../persistence/PgSystemSettingRepository.js";
 import { PgAuditLogRepository } from "../persistence/PgAuditLogRepository.js";
+import { PgSecretRepository } from "../persistence/PgSecretRepository.js";
+import { PgSecretValueRepository } from "../persistence/PgSecretValueRepository.js";
 import { AddAppMember } from "../../application/AddAppMember.js";
 import { RemoveAppMember } from "../../application/RemoveAppMember.js";
 import { ListAppMembers } from "../../application/ListAppMembers.js";
+import { CreateSecret } from "../../application/CreateSecret.js";
+import { ListSecrets } from "../../application/ListSecrets.js";
+import { DeleteSecret } from "../../application/DeleteSecret.js";
+import { SetSecretValue } from "../../application/SetSecretValue.js";
+import { GetSecretValue } from "../../application/GetSecretValue.js";
+import { RevealSecretValue } from "../../application/RevealSecretValue.js";
+import { GetPublicSecrets } from "../../application/GetPublicSecrets.js";
 import { publicRoutes } from "./routes/publicRoutes.js";
+import { secretRoutes } from "./routes/secretRoutes.js";
 import { appRoutes } from "./routes/appRoutes.js";
 import { environmentRoutes } from "./routes/environmentRoutes.js";
 import { toggleRoutes } from "./routes/toggleRoutes.js";
@@ -63,6 +73,9 @@ import { createLoginLimiter, createPublicLimiter, createCacheMissLimiter, create
 import { createSecurityLogger } from "../logging/securityLogger.js";
 import type { RequestCounter } from "../cache/RedisToggleCache.js";
 import { RedisRateLimitConfigCache } from "../cache/RedisToggleCache.js";
+import type { SecretCache } from "../cache/SecretCache.js";
+import { NoOpSecretCache } from "../cache/SecretCache.js";
+import { createEncryptionService } from "../crypto/EncryptionService.js";
 
 export function createExpressApp(
   pool: pg.Pool,
@@ -70,7 +83,8 @@ export function createExpressApp(
   cache: ToggleCache,
   requestCounter?: RequestCounter,
   rateLimitReader?: RateLimitConfigReader,
-  onRateLimitSettingChanged?: (key: string) => Promise<void>
+  onRateLimitSettingChanged?: (key: string) => Promise<void>,
+  secretCache?: SecretCache
 ) {
   const app = express();
 
@@ -131,6 +145,14 @@ export function createExpressApp(
   const removeAppMember = new RemoveAppMember(appMemberRepository);
   const listAppMembersUseCase = new ListAppMembers(appMemberRepository);
 
+  // Secrets
+  const secretRepository = new PgSecretRepository(pool);
+  const secretValueRepository = new PgSecretValueRepository(pool);
+  const resolvedSecretCache = secretCache ?? new NoOpSecretCache();
+  const encryptionService = config.encryption.key
+    ? createEncryptionService(config.encryption.key)
+    : null;
+
   // Admin use cases
   const adminCreateUser = new AdminCreateUser(userRepository);
   const adminListUsers = new AdminListUsers(userRepository);
@@ -155,7 +177,10 @@ export function createExpressApp(
   app.get("/api/docs.json", (_req, res) => { res.json(swaggerSpec); });
 
   // Public routes (API key required, rate limited)
-  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader));
+  const getPublicSecretsUseCase = encryptionService
+    ? new GetPublicSecrets(appRepository, environmentRepository, secretRepository, secretValueRepository, encryptionService, resolvedSecretCache)
+    : undefined;
+  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase));
 
   // Auth routes (login rate limited)
   app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwt.secret, securityLogger));
@@ -214,6 +239,17 @@ export function createExpressApp(
     environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache, recordAudit)
   );
   app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit, toggleValueRepository, environmentRepository));
+
+  // Secret routes (only if encryption key is configured)
+  if (encryptionService) {
+    const createSecretUseCase = new CreateSecret(appRepository, secretRepository);
+    const listSecretsUseCase = new ListSecrets(secretRepository);
+    const deleteSecretUseCase = new DeleteSecret(secretRepository, appRepository, environmentRepository, resolvedSecretCache);
+    const setSecretValueUseCase = new SetSecretValue(secretRepository, environmentRepository, secretValueRepository, appRepository, encryptionService, resolvedSecretCache);
+    const getSecretValueUseCase = new GetSecretValue(secretValueRepository, encryptionService);
+    const revealSecretValueUseCase = new RevealSecretValue(secretValueRepository, encryptionService);
+    app.use("/api", auth, secretRoutes(createSecretUseCase, listSecretsUseCase, deleteSecretUseCase, setSecretValueUseCase, getSecretValueUseCase, revealSecretValueUseCase, recordAudit));
+  }
 
   return app;
 }
