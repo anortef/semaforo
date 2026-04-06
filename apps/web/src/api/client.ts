@@ -329,6 +329,12 @@ export const api = {
       list: (limit = 50, offset = 0) =>
         request<{ entries: AuditLogEntryDTO[]; total: number }>(`/admin/audit-log?limit=${limit}&offset=${offset}`),
     },
+    backups: {
+      list: () =>
+        request<Array<{ filename: string; size: number; createdAt: string }>>("/admin/backups"),
+      create: () =>
+        request<{ filename: string; size: number; createdAt: string }>("/admin/backups", { method: "POST" }),
+    },
     health: () =>
       request<{ database: string; users: number; apps: number; uptime: number; memoryMb: number; loadAvg: [number, number, number] }>("/admin/health"),
     export: () =>

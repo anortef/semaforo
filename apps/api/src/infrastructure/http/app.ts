@@ -58,6 +58,7 @@ import { SetSecretValue } from "../../application/SetSecretValue.js";
 import { GetSecretValue } from "../../application/GetSecretValue.js";
 import { RevealSecretValue } from "../../application/RevealSecretValue.js";
 import { GetPublicSecrets } from "../../application/GetPublicSecrets.js";
+import { ScheduledBackup } from "../../application/ScheduledBackup.js";
 import { publicRoutes } from "./routes/publicRoutes.js";
 import { secretRoutes } from "./routes/secretRoutes.js";
 import { appRoutes } from "./routes/appRoutes.js";
@@ -117,6 +118,8 @@ export function createExpressApp(
   const getAppAuditLog = new GetAppAuditLog(appRepository, environmentRepository, toggleRepository, auditLogRepository, secretRepository);
   const exportAll = new ExportAll(appRepository, exportApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, environmentRepository);
   const importAll = new ImportAll(importApp, userRepository, systemSettingRepository, appMemberRepository, apiKeyRepository, appRepository, environmentRepository);
+  const backupDir = process.env.BACKUP_DIR ?? "/app/backups";
+  const scheduledBackup = new ScheduledBackup(exportAll, systemSettingRepository, backupDir);
   const createEnvironment = new CreateEnvironment(
     appRepository,
     environmentRepository,
@@ -234,6 +237,7 @@ export function createExpressApp(
     secretRepository,
     exportAll,
     importAll,
+    scheduledBackup,
     onSettingChanged: onRateLimitSettingChanged,
   }));
 

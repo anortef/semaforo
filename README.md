@@ -106,7 +106,17 @@ Per-app audit log (in each app's sidebar) and system-wide audit log (admin panel
 - **Per-app**: Export/Import buttons on the app Settings page
 - **Admin**: Export All / Import on the admin Settings page
 
-Full instance export includes users (with bcrypt hashes), system settings, apps, environments, toggles, toggle values, rollout percentages, app members, and API keys. The seed admin is excluded — fresh installs create it automatically.
+Full instance export includes users (with bcrypt hashes), system settings, apps, environments, toggles, toggle values, rollout percentages, secrets (encrypted), app members, and API keys. The seed admin is excluded — fresh installs create it automatically.
+
+### Scheduled Backups
+Automated compressed backups (`.json.gz`) stored in the `./backups` volume. Configured from the admin Settings page:
+
+- **Schedule**: Every hour, 12 hours, daily, or custom interval in hours
+- **Retention**: 7 days, 15 days, 30 days, or custom number of days
+- **Manual backup**: "Backup Now" button for on-demand backups
+- **History**: Table showing all backup files with size and timestamp
+
+Old backups are automatically pruned based on the retention setting. Backups are bind-mounted at `./backups` so they persist outside Docker.
 
 ### Themes
 Five built-in themes (Dark, Light, Midnight, Forest, Sunset) selectable from colored dots in the sidebar footer. Persisted in localStorage.
@@ -343,6 +353,8 @@ docs/           Architecture and domain documentation
 | PUT | `/api/admin/settings/:key` | Update setting |
 | GET | `/api/admin/audit-log` | Audit log |
 | GET | `/api/admin/health` | API service health |
+| GET | `/api/admin/backups` | List backup files |
+| POST | `/api/admin/backups` | Create backup now |
 | GET | `/api/admin/export` | Export full instance |
 | POST | `/api/admin/import` | Import full instance |
 

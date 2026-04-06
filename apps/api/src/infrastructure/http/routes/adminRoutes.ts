@@ -12,6 +12,7 @@ import type pg from "pg";
 import type { UserRepository, AppRepository, EnvironmentRepository, FeatureToggleRepository, SecretRepository } from "@semaforo/domain";
 import type { ExportAll } from "../../../application/ExportAll.js";
 import type { ImportAll } from "../../../application/ImportAll.js";
+import type { ScheduledBackup } from "../../../application/ScheduledBackup.js";
 
 interface AdminRouteDeps {
   createUser: AdminCreateUser;
@@ -31,6 +32,7 @@ interface AdminRouteDeps {
   secretRepository?: SecretRepository;
   exportAll?: ExportAll;
   importAll?: ImportAll;
+  scheduledBackup?: ScheduledBackup;
   onSettingChanged?: (key: string) => Promise<void>;
 }
 
@@ -273,6 +275,34 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Import failed";
         res.status(400).json({ error: msg });
+      }
+    });
+  }
+
+  // --- Backups ---
+  if (deps.scheduledBackup) {
+    router.get("/backups", async (_req, res) => {
+      try {
+        const backups = deps.scheduledBackup!.listBackups();
+        res.json(backups);
+      } catch {
+        res.status(500).json({ error: "Failed to list backups" });
+      }
+    });
+
+    router.post("/backups", async (_req, res) => {
+      try {
+        const backup = await deps.scheduledBackup!.execute();
+        deps.recordAudit.execute({
+          userId: res.locals.userId,
+          action: "backup.created",
+          resourceType: "system",
+          resourceId: backup.filename,
+        });
+        res.status(201).json(backup);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Backup failed";
+        res.status(500).json({ error: msg });
       }
     });
   }

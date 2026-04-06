@@ -49,6 +49,7 @@ services:
       - ./packages/domain/src:/app/packages/domain/src
       - ./packages/domain/dist:/app/packages/domain/dist
       - ./apps/api/src:/app/apps/api/src
+      - ./backups:/app/backups
     depends_on:
       postgres:
         condition: service_healthy
