@@ -111,6 +111,7 @@ export interface AuditLogEntryDTO {
   action: string;
   resourceType: string;
   resourceId: string;
+  resourceName: string;
   details: string;
   createdAt: string;
 }

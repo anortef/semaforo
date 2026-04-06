@@ -40,7 +40,7 @@ export function AdminAuditLogPage() {
                   </td>
                   <td><span className="badge badge-env">{e.action}</span></td>
                   <td>
-                    <span className="badge badge-key">{e.resourceType}:{e.resourceId.slice(0, 8)}</span>
+                    <span className="badge badge-key">{e.resourceType}: {e.resourceName}</span>
                   </td>
                   <td style={{ fontSize: "0.8125rem" }}>
                     {e.userName}

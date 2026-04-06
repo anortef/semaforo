@@ -166,12 +166,16 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       const offset = parseInt(req.query.offset as string) || 0;
       const result = await deps.listAuditLog.execute({ limit, offset });
 
-      // Resolve user names
-      const userIds = [...new Set(result.entries.map((e) => e.userId))];
+      // Resolve all user IDs to names (actors + user resources)
+      const allUserIds = new Set<string>();
+      for (const e of result.entries) {
+        allUserIds.add(e.userId);
+        if (e.resourceType === "user") allUserIds.add(e.resourceId);
+      }
       const userNames = new Map<string, string>();
-      for (const id of userIds) {
+      for (const id of allUserIds) {
         const user = await deps.userRepository.findById(id);
-        userNames.set(id, user?.name ?? "Unknown");
+        userNames.set(id, user?.name ?? "Deleted user");
       }
 
       const enriched = result.entries.map((e) => ({
@@ -181,6 +185,9 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
         action: e.action,
         resourceType: e.resourceType,
         resourceId: e.resourceId,
+        resourceName: e.resourceType === "user"
+          ? userNames.get(e.resourceId) ?? "Deleted user"
+          : e.resourceId,
         details: e.details,
         createdAt: e.createdAt,
       }));
