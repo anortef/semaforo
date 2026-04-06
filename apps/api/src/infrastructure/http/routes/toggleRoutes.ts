@@ -3,12 +3,14 @@ import type { CreateFeatureToggle } from "../../../application/CreateFeatureTogg
 import type { SetToggleValue } from "../../../application/SetToggleValue.js";
 import type { ListToggles } from "../../../application/ListToggles.js";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
+import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 
 export function toggleRoutes(
   createToggle: CreateFeatureToggle,
   setToggleValue: SetToggleValue,
   listToggles: ListToggles,
-  getPublicToggles?: GetPublicToggles
+  getPublicToggles?: GetPublicToggles,
+  audit?: RecordAuditEvent
 ): Router {
   const router = Router();
 
@@ -103,6 +105,13 @@ export function toggleRoutes(
         key: req.body.key,
         description: req.body.description,
       });
+      audit?.execute({
+        userId: res.locals.userId,
+        action: "toggle.created",
+        resourceType: "toggle",
+        resourceId: toggle.id.value,
+        details: JSON.stringify({ name: toggle.name, key: toggle.key }),
+      });
       res.status(201).json(toggle);
     } catch (error) {
       const message =
@@ -165,6 +174,13 @@ export function toggleRoutes(
         toggleId: req.params.toggleId,
         environmentId: req.params.environmentId,
         enabled: req.body.enabled,
+      });
+      audit?.execute({
+        userId: res.locals.userId,
+        action: req.body.enabled ? "toggle.enabled" : "toggle.disabled",
+        resourceType: "toggle",
+        resourceId: req.params.toggleId,
+        details: JSON.stringify({ environmentId: req.params.environmentId, enabled: req.body.enabled }),
       });
       res.json(value);
     } catch (error) {

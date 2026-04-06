@@ -4,6 +4,7 @@ import type { CreateEnvironment } from "../../../application/CreateEnvironment.j
 import type { ListEnvironments } from "../../../application/ListEnvironments.js";
 import type { UpdateEnvironment } from "../../../application/UpdateEnvironment.js";
 import type { ToggleCache } from "../../cache/RedisToggleCache.js";
+import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 
 export function environmentRoutes(
   createEnvironment: CreateEnvironment,
@@ -11,7 +12,8 @@ export function environmentRoutes(
   updateEnvironment: UpdateEnvironment,
   appRepository: AppRepository,
   environmentRepository: EnvironmentRepository,
-  cache: ToggleCache
+  cache: ToggleCache,
+  audit?: RecordAuditEvent
 ): Router {
   const router = Router();
 
@@ -104,6 +106,13 @@ export function environmentRoutes(
         name: req.body.name,
         key: req.body.key,
       });
+      audit?.execute({
+        userId: res.locals.userId,
+        action: "environment.created",
+        resourceType: "environment",
+        resourceId: environment.id.value,
+        details: JSON.stringify({ name: environment.name, key: environment.key }),
+      });
       res.status(201).json(environment);
     } catch (error) {
       const message =
@@ -160,6 +169,13 @@ export function environmentRoutes(
         environmentId: req.params.environmentId,
         name: req.body.name,
         cacheTtlSeconds: req.body.cacheTtlSeconds,
+      });
+      audit?.execute({
+        userId: res.locals.userId,
+        action: "environment.updated",
+        resourceType: "environment",
+        resourceId: environment.id.value,
+        details: JSON.stringify({ name: environment.name }),
       });
       res.json(environment);
     } catch (error) {

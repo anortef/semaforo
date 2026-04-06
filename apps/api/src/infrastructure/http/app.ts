@@ -190,21 +190,24 @@ export function createExpressApp(
     recordAudit,
     pool,
     userRepository,
+    appRepository,
+    environmentRepository,
+    toggleRepository,
     exportAll,
     importAll,
   }));
 
   // Protected routes (require JWT auth)
-  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics, exportApp, importApp));
-  app.use("/api/apps", auth, appMemberRoutes(addAppMember, removeAppMember, listAppMembersUseCase, userRepository));
+  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics, exportApp, importApp, recordAudit));
+  app.use("/api/apps", auth, appMemberRoutes(addAppMember, removeAppMember, listAppMembersUseCase, userRepository, recordAudit));
   app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use(
     "/api",
     auth,
-    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache)
+    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache, recordAudit)
   );
-  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles));
+  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit));
 
   return app;
 }

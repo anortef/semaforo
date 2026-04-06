@@ -3,12 +3,14 @@ import type { AddAppMember } from "../../../application/AddAppMember.js";
 import type { RemoveAppMember } from "../../../application/RemoveAppMember.js";
 import type { ListAppMembers } from "../../../application/ListAppMembers.js";
 import type { UserRepository } from "@semaforo/domain";
+import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 
 export function appMemberRoutes(
   addMember: AddAppMember,
   removeMember: RemoveAppMember,
   listMembers: ListAppMembers,
-  userRepository: UserRepository
+  userRepository: UserRepository,
+  audit?: RecordAuditEvent
 ): Router {
   const router = Router();
 
@@ -42,6 +44,13 @@ export function appMemberRoutes(
         userId: req.body.userId,
         role: req.body.role,
       });
+      audit?.execute({
+        userId: res.locals.userId,
+        action: "member.added",
+        resourceType: "app",
+        resourceId: req.params.appId,
+        details: JSON.stringify({ memberId: member.userId, role: member.role }),
+      });
       res.status(201).json(member);
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to add member";
@@ -52,6 +61,13 @@ export function appMemberRoutes(
   router.delete("/:appId/members/:memberId", async (req, res) => {
     try {
       await removeMember.execute(req.params.memberId);
+      audit?.execute({
+        userId: res.locals.userId,
+        action: "member.removed",
+        resourceType: "app",
+        resourceId: req.params.appId,
+        details: JSON.stringify({ memberId: req.params.memberId }),
+      });
       res.status(204).send();
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Failed to remove member";

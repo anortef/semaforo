@@ -9,7 +9,7 @@ import type { AdminUpdateSystemSetting } from "../../../application/admin/Update
 import type { AdminListAuditLog } from "../../../application/admin/ListAuditLog.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type pg from "pg";
-import type { UserRepository } from "@semaforo/domain";
+import type { UserRepository, AppRepository, EnvironmentRepository, FeatureToggleRepository } from "@semaforo/domain";
 import type { ExportAll } from "../../../application/ExportAll.js";
 import type { ImportAll } from "../../../application/ImportAll.js";
 
@@ -25,6 +25,9 @@ interface AdminRouteDeps {
   recordAudit: RecordAuditEvent;
   pool: pg.Pool;
   userRepository: UserRepository;
+  appRepository: AppRepository;
+  environmentRepository: EnvironmentRepository;
+  toggleRepository: FeatureToggleRepository;
   exportAll?: ExportAll;
   importAll?: ImportAll;
 }
@@ -166,31 +169,49 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       const offset = parseInt(req.query.offset as string) || 0;
       const result = await deps.listAuditLog.execute({ limit, offset });
 
-      // Resolve all user IDs to names (actors + user resources)
-      const allUserIds = new Set<string>();
-      for (const e of result.entries) {
-        allUserIds.add(e.userId);
-        if (e.resourceType === "user") allUserIds.add(e.resourceId);
-      }
+      // Resolve actor names
+      const actorIds = [...new Set(result.entries.map((e) => e.userId))];
       const userNames = new Map<string, string>();
-      for (const id of allUserIds) {
+      for (const id of actorIds) {
         const user = await deps.userRepository.findById(id);
         userNames.set(id, user?.name ?? "Deleted user");
       }
 
-      const enriched = result.entries.map((e) => ({
-        id: e.id,
-        userName: userNames.get(e.userId) ?? "Unknown",
-        userId: e.userId,
-        action: e.action,
-        resourceType: e.resourceType,
-        resourceId: e.resourceId,
-        resourceName: e.resourceType === "user"
-          ? userNames.get(e.resourceId) ?? "Deleted user"
-          : e.resourceId,
-        details: e.details,
-        createdAt: e.createdAt,
-      }));
+      // Resolve resource names
+      async function resolveResourceName(type: string, id: string): Promise<string> {
+        if (type === "user") {
+          if (userNames.has(id)) return userNames.get(id)!;
+          const u = await deps.userRepository.findById(id);
+          return u?.name ?? "Deleted user";
+        }
+        if (type === "app") {
+          const a = await deps.appRepository.findById(id);
+          return a?.name ?? "Deleted app";
+        }
+        if (type === "environment") {
+          const e = await deps.environmentRepository.findById(id);
+          return e?.name ?? "Deleted environment";
+        }
+        if (type === "toggle") {
+          const t = await deps.toggleRepository.findById(id);
+          return t?.name ?? "Deleted toggle";
+        }
+        return id;
+      }
+
+      const enriched = await Promise.all(
+        result.entries.map(async (e) => ({
+          id: e.id,
+          userName: userNames.get(e.userId) ?? "Unknown",
+          userId: e.userId,
+          action: e.action,
+          resourceType: e.resourceType,
+          resourceId: e.resourceId,
+          resourceName: await resolveResourceName(e.resourceType, e.resourceId),
+          details: e.details,
+          createdAt: e.createdAt,
+        }))
+      );
 
       res.json({ entries: enriched, total: result.total });
     } catch {

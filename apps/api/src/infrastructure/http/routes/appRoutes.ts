@@ -5,6 +5,7 @@ import type { GetApp } from "../../../application/GetApp.js";
 import type { GetAppMetrics } from "../../../application/GetAppMetrics.js";
 import type { ExportApp } from "../../../application/ExportApp.js";
 import type { ImportApp } from "../../../application/ImportApp.js";
+import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 
 export function appRoutes(
   createApp: CreateApp,
@@ -12,7 +13,8 @@ export function appRoutes(
   getApp: GetApp,
   getAppMetrics?: GetAppMetrics,
   exportApp?: ExportApp,
-  importApp?: ImportApp
+  importApp?: ImportApp,
+  audit?: RecordAuditEvent
 ): Router {
   const router = Router();
 
@@ -128,6 +130,13 @@ export function appRoutes(
           key: req.body.key,
           description: req.body.description,
         });
+      audit?.execute({
+        userId: res.locals.userId,
+        action: "app.created",
+        resourceType: "app",
+        resourceId: app.id.value,
+        details: JSON.stringify({ name: app.name, key: app.key }),
+      });
       res.status(201).json(app);
     } catch (error) {
       const message =
