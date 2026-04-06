@@ -3,12 +3,16 @@ import type { CreateApp } from "../../../application/CreateApp.js";
 import type { ListApps } from "../../../application/ListApps.js";
 import type { GetApp } from "../../../application/GetApp.js";
 import type { GetAppMetrics } from "../../../application/GetAppMetrics.js";
+import type { ExportApp } from "../../../application/ExportApp.js";
+import type { ImportApp } from "../../../application/ImportApp.js";
 
 export function appRoutes(
   createApp: CreateApp,
   listApps: ListApps,
   getApp: GetApp,
-  getAppMetrics?: GetAppMetrics
+  getAppMetrics?: GetAppMetrics,
+  exportApp?: ExportApp,
+  importApp?: ImportApp
 ): Router {
   const router = Router();
 
@@ -145,6 +149,31 @@ export function appRoutes(
         } else {
           res.status(500).json({ error: "Internal server error" });
         }
+      }
+    });
+  }
+
+  if (exportApp) {
+    router.get("/:appId/export", async (req, res) => {
+      try {
+        const data = await exportApp.execute(req.params.appId);
+        res.setHeader("Content-Disposition", `attachment; filename="${data.app.key}-export.json"`);
+        res.json(data);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Export failed";
+        res.status(msg.includes("not found") ? 404 : 500).json({ error: msg });
+      }
+    });
+  }
+
+  if (importApp) {
+    router.post("/import", async (req, res) => {
+      try {
+        await importApp.execute(req.body);
+        res.status(201).json({ success: true });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Import failed";
+        res.status(400).json({ error: msg });
       }
     });
   }

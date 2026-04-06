@@ -9,6 +9,8 @@ import type { AdminUpdateSystemSetting } from "../../../application/admin/Update
 import type { AdminListAuditLog } from "../../../application/admin/ListAuditLog.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type pg from "pg";
+import type { ExportAll } from "../../../application/ExportAll.js";
+import type { ImportApp } from "../../../application/ImportApp.js";
 
 interface AdminRouteDeps {
   createUser: AdminCreateUser;
@@ -21,6 +23,8 @@ interface AdminRouteDeps {
   listAuditLog: AdminListAuditLog;
   recordAudit: RecordAuditEvent;
   pool: pg.Pool;
+  exportAll?: ExportAll;
+  importApp?: ImportApp;
 }
 
 export function adminRoutes(deps: AdminRouteDeps): Router {
@@ -181,6 +185,44 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       res.status(503).json({ database: "error" });
     }
   });
+
+  // --- Export/Import ---
+  if (deps.exportAll) {
+    router.get("/export", async (_req, res) => {
+      try {
+        const data = await deps.exportAll!.execute();
+        res.setHeader("Content-Disposition", 'attachment; filename="semaforo-export.json"');
+        res.json(data);
+      } catch {
+        res.status(500).json({ error: "Export failed" });
+      }
+    });
+  }
+
+  if (deps.importApp) {
+    router.post("/import", async (req, res) => {
+      try {
+        const data = req.body;
+        if (data.apps) {
+          for (const appData of data.apps) {
+            await deps.importApp!.execute(appData);
+          }
+        } else {
+          await deps.importApp!.execute(data);
+        }
+        await deps.recordAudit.execute({
+          userId: res.locals.userId,
+          action: "system.import",
+          resourceType: "system",
+          resourceId: "import",
+        });
+        res.status(201).json({ success: true });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : "Import failed";
+        res.status(400).json({ error: msg });
+      }
+    });
+  }
 
   return router;
 }

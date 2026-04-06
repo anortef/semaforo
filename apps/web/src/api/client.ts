@@ -165,6 +165,13 @@ export const api = {
       }),
     metrics: (appId: string) =>
       request<AppMetricsDTO>(`/apps/${appId}/metrics`),
+    export: (appId: string) =>
+      request<unknown>(`/apps/${appId}/export`),
+    import: (data: unknown) =>
+      request<{ success: boolean }>("/apps/import", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
   environments: {
     list: (appId: string) =>
@@ -266,5 +273,12 @@ export const api = {
     },
     health: () =>
       request<{ database: string; users: number; apps: number; uptime: number }>("/admin/health"),
+    export: () =>
+      request<unknown>("/admin/export"),
+    import: (data: unknown) =>
+      request<{ success: boolean }>("/admin/import", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
   },
 };

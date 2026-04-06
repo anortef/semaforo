@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { api, type AppDTO, type AppMemberDTO, type AdminUserDTO } from "../api/client.js";
+import { useApps } from "../context/AppsContext.js";
 
 export function AppSettingsPage() {
   const { appId } = useParams<{ appId: string }>();
@@ -8,6 +9,8 @@ export function AppSettingsPage() {
   const [members, setMembers] = useState<AppMemberDTO[]>([]);
   const [allUsers, setAllUsers] = useState<AdminUserDTO[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { refresh } = useApps();
   const [selectedRole, setSelectedRole] = useState("viewer");
   const [error, setError] = useState("");
 
@@ -46,16 +49,49 @@ export function AppSettingsPage() {
     }
   }
 
+  async function handleExport() {
+    if (!appId) return;
+    const data = await api.apps.export(appId);
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${app?.key ?? "app"}-export.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const data = JSON.parse(text);
+      await api.apps.import(data);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Import failed");
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   const existingUserIds = new Set(members.map((m) => m.userId));
   const availableUsers = allUsers.filter((u) => !existingUserIds.has(u.id.value));
 
   return (
     <div className="page">
-      <div className="page-header">
-        <h1 className="page-title">Settings</h1>
-        <p className="page-subtitle">
-          {app ? `Access control for ${app.name}` : "Loading..."}
-        </p>
+      <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1 className="page-title">Settings</h1>
+          <p className="page-subtitle">
+            {app ? `Access control for ${app.name}` : "Loading..."}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button className="btn btn-ghost" onClick={handleExport}>Export</button>
+          <button className="btn btn-ghost" onClick={() => fileInputRef.current?.click()}>Import</button>
+          <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} style={{ display: "none" }} />
+        </div>
       </div>
 
       <div className="card">
