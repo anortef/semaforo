@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import {
   api,
@@ -15,6 +15,8 @@ export function TogglesPage() {
   const [toggles, setToggles] = useState<FeatureToggleDTO[]>([]);
   const [toggleStates, setToggleStates] = useState<Map<string, boolean>>(new Map());
   const [rolloutMap, setRolloutMap] = useState<Map<string, number>>(new Map());
+  const [abExpandedToggle, setAbExpandedToggle] = useState<string | null>(null);
+  const [abSaving, setAbSaving] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -99,18 +101,37 @@ export function TogglesPage() {
     }
   }
 
-  async function handleRolloutChange(toggleId: string, envId: string, rolloutPercentage: number) {
+  function handleRolloutChange(toggleId: string, envId: string, rolloutPercentage: number) {
     const stateKey = `${toggleId}:${envId}`;
     setRolloutMap((prev) => new Map(prev).set(stateKey, rolloutPercentage));
   }
 
-  async function handleRolloutSave(toggleId: string, envId: string) {
-    const stateKey = `${toggleId}:${envId}`;
-    const pct = rolloutMap.get(stateKey) ?? 100;
+  async function handleApplyAb(toggleId: string) {
+    setAbSaving(toggleId);
     try {
-      const result = await api.toggles.setValue(toggleId, envId, { rolloutPercentage: pct });
-      setUpdatedAtMap((prev) => new Map(prev).set(stateKey, result.updatedAt));
+      for (const env of environments) {
+        const stateKey = `${toggleId}:${env.id.value}`;
+        const pct = rolloutMap.get(stateKey) ?? 100;
+        const result = await api.toggles.setValue(toggleId, env.id.value, { rolloutPercentage: pct });
+        setUpdatedAtMap((prev) => new Map(prev).set(stateKey, result.updatedAt));
+      }
     } catch { /* ignore */ }
+    setAbSaving(null);
+  }
+
+  function toggleAb(toggleId: string) {
+    if (abExpandedToggle === toggleId) {
+      setAbExpandedToggle(null);
+    } else {
+      setAbExpandedToggle(toggleId);
+    }
+  }
+
+  function isAbActive(toggleId: string): boolean {
+    return environments.some((env) => {
+      const pct = rolloutMap.get(`${toggleId}:${env.id.value}`);
+      return pct !== undefined && pct < 100;
+    });
   }
 
   function formatTimeAgo(dateStr: string): string {
@@ -203,44 +224,84 @@ export function TogglesPage() {
                 </tr>
               </thead>
               <tbody>
-                {booleanToggles.map((toggle) => (
-                  <tr key={toggle.id.value}>
-                    <td style={{ paddingLeft: "1.25rem" }}>
-                      <div style={{ fontWeight: 500 }}>{toggle.name}</div>
-                      <span className="badge badge-key">{toggle.key}</span>
-                    </td>
-                    {environments.map((env) => {
-                      const stateKey = `${toggle.id.value}:${env.id.value}`;
-                      const isEnabled = toggleStates.get(stateKey) ?? false;
-                      const pct = rolloutMap.get(stateKey) ?? 100;
-                      return (
-                        <td key={env.id.value} style={{ textAlign: "center", verticalAlign: "middle" }}>
-                          <label className="toggle-switch">
-                            <input type="checkbox" checked={isEnabled} onChange={(e) => handleToggle(toggle.id.value, env.id.value, e.target.checked)} />
-                            <span className="toggle-slider" />
-                          </label>
-                          {isEnabled && (
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", justifyContent: "center", marginTop: "0.375rem" }}>
-                              <input
-                                type="range" min={0} max={100} value={pct}
-                                onChange={(e) => handleRolloutChange(toggle.id.value, env.id.value, parseInt(e.target.value))}
-                                onMouseUp={() => handleRolloutSave(toggle.id.value, env.id.value)}
-                                onTouchEnd={() => handleRolloutSave(toggle.id.value, env.id.value)}
-                                style={{ width: "60px", accentColor: "var(--color-accent)" }}
-                              />
-                              <span style={{ fontSize: "0.625rem", color: pct < 100 ? "var(--color-accent)" : "var(--color-text-muted)", minWidth: "28px" }}>{pct}%</span>
-                            </div>
-                          )}
-                          {updatedAtMap.get(stateKey) && (
-                            <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", marginTop: "0.125rem" }} title={new Date(updatedAtMap.get(stateKey)!).toLocaleString()}>
-                              {formatTimeAgo(updatedAtMap.get(stateKey)!)}
-                            </div>
-                          )}
+                {booleanToggles.map((toggle) => {
+                  const abActive = isAbActive(toggle.id.value);
+                  const abOpen = abExpandedToggle === toggle.id.value;
+                  return (
+                    <React.Fragment key={toggle.id.value}>
+                      <tr>
+                        <td style={{ paddingLeft: "1.25rem" }}>
+                          <div style={{ fontWeight: 500 }}>{toggle.name}</div>
+                          <span className="badge badge-key">{toggle.key}</span>
+                          <button
+                            className="btn btn-ghost"
+                            style={{ marginLeft: "0.5rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: abActive ? "var(--color-accent)" : "var(--color-text-muted)" }}
+                            onClick={() => toggleAb(toggle.id.value)}
+                          >
+                            {abActive ? "A/B" : "A/B"}
+                          </button>
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                        {environments.map((env) => {
+                          const stateKey = `${toggle.id.value}:${env.id.value}`;
+                          const isEnabled = toggleStates.get(stateKey) ?? false;
+                          const pct = rolloutMap.get(stateKey) ?? 100;
+                          return (
+                            <td key={env.id.value} style={{ textAlign: "center", verticalAlign: "middle" }}>
+                              <label className="toggle-switch">
+                                <input type="checkbox" checked={isEnabled} onChange={(e) => handleToggle(toggle.id.value, env.id.value, e.target.checked)} />
+                                <span className="toggle-slider" />
+                              </label>
+                              {isEnabled && pct < 100 && (
+                                <div style={{ fontSize: "0.625rem", color: "var(--color-accent)", marginTop: "0.125rem" }}>{pct}%</div>
+                              )}
+                              {updatedAtMap.get(stateKey) && (
+                                <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", marginTop: "0.125rem" }} title={new Date(updatedAtMap.get(stateKey)!).toLocaleString()}>
+                                  {formatTimeAgo(updatedAtMap.get(stateKey)!)}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                      {abOpen && (
+                        <tr>
+                          <td colSpan={1 + environments.length} style={{ paddingLeft: "1.25rem", background: "var(--color-surface-hover)" }}>
+                            <div style={{ padding: "0.75rem 0" }}>
+                              <div style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.5rem" }}>A/B Testing — Rollout Percentage</div>
+                              <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+                                {environments.map((env) => {
+                                  const stateKey = `${toggle.id.value}:${env.id.value}`;
+                                  const pct = rolloutMap.get(stateKey) ?? 100;
+                                  return (
+                                    <div key={env.id.value} className="form-field">
+                                      <label>{env.name}</label>
+                                      <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                                        <input
+                                          type="number" min={0} max={100} value={pct}
+                                          onChange={(e) => handleRolloutChange(toggle.id.value, env.id.value, parseInt(e.target.value) || 0)}
+                                          style={{ width: "64px", padding: "0.375rem", background: "var(--color-input-bg)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", color: "var(--color-text)", fontSize: "0.8125rem", textAlign: "center" }}
+                                        />
+                                        <span style={{ fontSize: "0.75rem", color: "var(--color-text-muted)" }}>%</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                <button
+                                  className="btn btn-primary"
+                                  style={{ fontSize: "0.75rem" }}
+                                  disabled={abSaving === toggle.id.value}
+                                  onClick={() => handleApplyAb(toggle.id.value)}
+                                >
+                                  {abSaving === toggle.id.value ? "Saving..." : "Apply"}
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
