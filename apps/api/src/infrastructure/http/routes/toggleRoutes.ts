@@ -195,10 +195,13 @@ export function toggleRoutes(
         environmentId: req.params.environmentId,
         enabled: req.body.enabled,
         stringValue: req.body.stringValue,
+        rolloutPercentage: req.body.rolloutPercentage,
       });
-      const action = req.body.stringValue !== undefined
-        ? "toggle.value_changed"
-        : (req.body.enabled ? "toggle.enabled" : "toggle.disabled");
+      const action = req.body.rolloutPercentage !== undefined
+        ? "toggle.rollout_changed"
+        : req.body.stringValue !== undefined
+          ? "toggle.value_changed"
+          : (req.body.enabled ? "toggle.enabled" : "toggle.disabled");
       audit?.execute({
         userId: res.locals.userId,
         action,

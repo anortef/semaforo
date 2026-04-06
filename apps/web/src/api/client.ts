@@ -66,6 +66,7 @@ export interface ToggleValueDTO {
   environmentId: string;
   enabled: boolean;
   stringValue: string;
+  rolloutPercentage: number;
   updatedAt: string;
 }
 
@@ -218,7 +219,7 @@ export const api = {
       ),
     getValues: (appId: string) =>
       request<ToggleValueDTO[]>(`/apps/${appId}/toggle-values`),
-    setValue: (toggleId: string, environmentId: string, data: { enabled?: boolean; stringValue?: string }) =>
+    setValue: (toggleId: string, environmentId: string, data: { enabled?: boolean; stringValue?: string; rolloutPercentage?: number }) =>
       request<ToggleValueDTO>(
         `/toggles/${toggleId}/environments/${environmentId}`,
         {

@@ -25,10 +25,10 @@ export class PgToggleValueRepository implements ToggleValueRepository {
 
   async save(value: ToggleValue): Promise<void> {
     await this.pool.query(
-      `INSERT INTO toggle_values (id, toggle_id, environment_id, enabled, string_value, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       ON CONFLICT (id) DO UPDATE SET enabled = $4, string_value = $5, updated_at = $6`,
-      [value.id.value, value.toggleId, value.environmentId, value.enabled, value.stringValue, value.updatedAt]
+      `INSERT INTO toggle_values (id, toggle_id, environment_id, enabled, string_value, rollout_percentage, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (id) DO UPDATE SET enabled = $4, string_value = $5, rollout_percentage = $6, updated_at = $7`,
+      [value.id.value, value.toggleId, value.environmentId, value.enabled, value.stringValue, value.rolloutPercentage, value.updatedAt]
     );
   }
 
@@ -44,6 +44,7 @@ function toDomain(row: Record<string, unknown>): ToggleValue {
     environmentId: row.environment_id as string,
     enabled: row.enabled as boolean,
     stringValue: (row.string_value as string) ?? "",
+    rolloutPercentage: (row.rollout_percentage as number) ?? 100,
     updatedAt: new Date(row.updated_at as string),
   };
 }

@@ -62,10 +62,12 @@ export function publicRoutes(
               return;
             }
 
+            const userId = typeof req.headers["x-user-id"] === "string" ? req.headers["x-user-id"] : undefined;
             const toggles = await getPublicToggles.execute({
               appKey: app.key,
               envKey: env.key,
               toggleKey,
+              userId,
             });
 
             if (cache && !toggleKey) {
@@ -94,10 +96,12 @@ export function publicRoutes(
     },
     async (req: import("express").Request, res: import("express").Response) => {
       try {
+        const userId = typeof req.headers["x-user-id"] === "string" ? req.headers["x-user-id"] : undefined;
         const toggles = await getPublicToggles.execute({
           appKey: req.params.appKey,
           envKey: req.params.envKey,
           toggleKey: req.params.toggleKey,
+          userId,
         });
         res.json(toggles);
       } catch (error) {

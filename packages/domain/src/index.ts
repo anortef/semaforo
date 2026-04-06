@@ -19,6 +19,7 @@ export type {
 
 export { createToggleValue, updateToggleValue } from "./entities/ToggleValue.js";
 export type { ToggleValue, ToggleValueId } from "./entities/ToggleValue.js";
+export { evaluateRollout } from "./entities/RolloutEvaluator.js";
 
 export { createSystemSetting } from "./entities/SystemSetting.js";
 export type { SystemSetting, SystemSettingId } from "./entities/SystemSetting.js";

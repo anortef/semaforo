@@ -24,6 +24,7 @@ export class SetToggleValue {
     environmentId: string;
     enabled?: boolean;
     stringValue?: string;
+    rolloutPercentage?: number;
   }): Promise<ToggleValue> {
     const toggle = await this.toggleRepository.findById(params.toggleId);
     if (!toggle) {
@@ -53,6 +54,7 @@ export class SetToggleValue {
       result = updateToggleValue(existing, {
         enabled: params.enabled,
         stringValue: params.stringValue,
+        rolloutPercentage: params.rolloutPercentage,
       });
       await this.toggleValueRepository.save(result);
     } else {
@@ -62,6 +64,7 @@ export class SetToggleValue {
         environmentId: params.environmentId,
         enabled: params.enabled,
         stringValue: params.stringValue,
+        rolloutPercentage: params.rolloutPercentage,
       });
       await this.toggleValueRepository.save(result);
     }

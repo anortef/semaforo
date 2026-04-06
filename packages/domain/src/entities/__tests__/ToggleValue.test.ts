@@ -64,4 +64,29 @@ describe("ToggleValue", () => {
 
     expect(updated.stringValue).toBe("hi");
   });
+
+  it("defaults rolloutPercentage to 100", () => {
+    const value = createToggleValue({ id: "tv-1", toggleId: "t-1", environmentId: "e-1" });
+
+    expect(value.rolloutPercentage).toBe(100);
+  });
+
+  it("can be created with a rollout percentage", () => {
+    const value = createToggleValue({ id: "tv-1", toggleId: "t-1", environmentId: "e-1", rolloutPercentage: 50 });
+
+    expect(value.rolloutPercentage).toBe(50);
+  });
+
+  it("clamps rollout percentage to 0-100", () => {
+    const value = createToggleValue({ id: "tv-1", toggleId: "t-1", environmentId: "e-1", rolloutPercentage: 150 });
+
+    expect(value.rolloutPercentage).toBe(100);
+  });
+
+  it("can update rollout percentage", () => {
+    const original = createToggleValue({ id: "tv-1", toggleId: "t-1", environmentId: "e-1" });
+    const updated = updateToggleValue(original, { rolloutPercentage: 25 });
+
+    expect(updated.rolloutPercentage).toBe(25);
+  });
 });

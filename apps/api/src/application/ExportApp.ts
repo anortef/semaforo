@@ -14,6 +14,7 @@ export interface AppExportData {
     description: string;
     type: string;
     values: Record<string, boolean | string>;
+    rollout?: Record<string, number>;
   }>;
   exportedAt: string;
 }
@@ -38,6 +39,7 @@ export class ExportApp {
     const toggleExports = await Promise.all(
       toggles.map(async (toggle) => {
         const values: Record<string, boolean | string> = {};
+        const rollout: Record<string, number> = {};
         for (const env of envs) {
           const tv = await this.toggleValueRepository.findByToggleAndEnvironment(
             toggle.id.value,
@@ -46,12 +48,16 @@ export class ExportApp {
           values[env.key] = toggle.type === "string"
             ? (tv?.stringValue ?? "")
             : (tv?.enabled ?? false);
+          if (tv && tv.rolloutPercentage < 100) {
+            rollout[env.key] = tv.rolloutPercentage;
+          }
         }
         return {
           name: toggle.name,
           key: toggle.key,
           description: toggle.description,
           type: toggle.type,
+          rollout: Object.keys(rollout).length > 0 ? rollout : undefined,
           values,
         };
       })

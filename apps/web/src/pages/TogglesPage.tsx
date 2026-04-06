@@ -14,6 +14,7 @@ export function TogglesPage() {
   const [environments, setEnvironments] = useState<EnvironmentDTO[]>([]);
   const [toggles, setToggles] = useState<FeatureToggleDTO[]>([]);
   const [toggleStates, setToggleStates] = useState<Map<string, boolean>>(new Map());
+  const [rolloutMap, setRolloutMap] = useState<Map<string, number>>(new Map());
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -46,9 +47,15 @@ export function TogglesPage() {
     api.environments.list(appId).then(setEnvironments).catch(console.error);
     api.toggles.list(appId).then(setToggles).catch(console.error);
     api.toggles.getValues(appId).then((values) => {
-      const map = new Map<string, string>();
-      for (const v of values) map.set(`${v.toggleId}:${v.environmentId}`, v.updatedAt);
-      setUpdatedAtMap(map);
+      const timeMap = new Map<string, string>();
+      const rollMap = new Map<string, number>();
+      for (const v of values) {
+        const k = `${v.toggleId}:${v.environmentId}`;
+        timeMap.set(k, v.updatedAt);
+        rollMap.set(k, v.rolloutPercentage);
+      }
+      setUpdatedAtMap(timeMap);
+      setRolloutMap(rollMap);
     }).catch(console.error);
   }, [appId]);
 
@@ -90,6 +97,20 @@ export function TogglesPage() {
     } catch {
       setToggleStates((prev) => new Map(prev).set(stateKey, !enabled));
     }
+  }
+
+  async function handleRolloutChange(toggleId: string, envId: string, rolloutPercentage: number) {
+    const stateKey = `${toggleId}:${envId}`;
+    setRolloutMap((prev) => new Map(prev).set(stateKey, rolloutPercentage));
+  }
+
+  async function handleRolloutSave(toggleId: string, envId: string) {
+    const stateKey = `${toggleId}:${envId}`;
+    const pct = rolloutMap.get(stateKey) ?? 100;
+    try {
+      const result = await api.toggles.setValue(toggleId, envId, { rolloutPercentage: pct });
+      setUpdatedAtMap((prev) => new Map(prev).set(stateKey, result.updatedAt));
+    } catch { /* ignore */ }
   }
 
   function formatTimeAgo(dateStr: string): string {
@@ -191,14 +212,27 @@ export function TogglesPage() {
                     {environments.map((env) => {
                       const stateKey = `${toggle.id.value}:${env.id.value}`;
                       const isEnabled = toggleStates.get(stateKey) ?? false;
+                      const pct = rolloutMap.get(stateKey) ?? 100;
                       return (
                         <td key={env.id.value} style={{ textAlign: "center", verticalAlign: "middle" }}>
                           <label className="toggle-switch">
                             <input type="checkbox" checked={isEnabled} onChange={(e) => handleToggle(toggle.id.value, env.id.value, e.target.checked)} />
                             <span className="toggle-slider" />
                           </label>
+                          {isEnabled && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", justifyContent: "center", marginTop: "0.375rem" }}>
+                              <input
+                                type="range" min={0} max={100} value={pct}
+                                onChange={(e) => handleRolloutChange(toggle.id.value, env.id.value, parseInt(e.target.value))}
+                                onMouseUp={() => handleRolloutSave(toggle.id.value, env.id.value)}
+                                onTouchEnd={() => handleRolloutSave(toggle.id.value, env.id.value)}
+                                style={{ width: "60px", accentColor: "var(--color-accent)" }}
+                              />
+                              <span style={{ fontSize: "0.625rem", color: pct < 100 ? "var(--color-accent)" : "var(--color-text-muted)", minWidth: "28px" }}>{pct}%</span>
+                            </div>
+                          )}
                           {updatedAtMap.get(stateKey) && (
-                            <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }} title={new Date(updatedAtMap.get(stateKey)!).toLocaleString()}>
+                            <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", marginTop: "0.125rem" }} title={new Date(updatedAtMap.get(stateKey)!).toLocaleString()}>
                               {formatTimeAgo(updatedAtMap.get(stateKey)!)}
                             </div>
                           )}

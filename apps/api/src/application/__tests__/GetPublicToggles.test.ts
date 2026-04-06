@@ -121,6 +121,7 @@ describe("GetPublicToggles", () => {
         name: "New Checkout",
         key: "newCheckout",
         description: "",
+        type: "boolean" as const,
         createdAt: new Date(),
       },
       {
@@ -129,6 +130,7 @@ describe("GetPublicToggles", () => {
         name: "Beta Search",
         key: "betaSearch",
         description: "",
+        type: "boolean" as const,
         createdAt: new Date(),
       }
     );
@@ -137,6 +139,8 @@ describe("GetPublicToggles", () => {
       toggleId: "t-1",
       environmentId: "env-1",
       enabled: true,
+      stringValue: "",
+      rolloutPercentage: 100,
       updatedAt: new Date(),
     });
 
@@ -165,11 +169,11 @@ describe("GetPublicToggles", () => {
       id: { value: "env-1" }, appId: "app-1", name: "Prod", key: "prod", cacheTtlSeconds: 300, createdAt: new Date(),
     });
     toggleRepo.toggles.push(
-      { id: { value: "t-1" }, appId: "app-1", name: "A", key: "featureA", description: "", createdAt: new Date() },
-      { id: { value: "t-2" }, appId: "app-1", name: "B", key: "featureB", description: "", createdAt: new Date() },
+      { id: { value: "t-1" }, appId: "app-1", name: "A", key: "featureA", description: "", type: "boolean" as const, createdAt: new Date() },
+      { id: { value: "t-2" }, appId: "app-1", name: "B", key: "featureB", description: "", type: "boolean" as const, createdAt: new Date() },
     );
     valueRepo.values.push({
-      id: { value: "v-1" }, toggleId: "t-1", environmentId: "env-1", enabled: true, updatedAt: new Date(),
+      id: { value: "v-1" }, toggleId: "t-1", environmentId: "env-1", enabled: true, stringValue: "", rolloutPercentage: 100, updatedAt: new Date(),
     });
 
     const result = await useCase.execute({ appKey: "my-app", envKey: "prod", toggleKey: "featureA" });

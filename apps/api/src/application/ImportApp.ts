@@ -19,6 +19,7 @@ export interface AppExport {
     description?: string;
     type?: string;
     values: Record<string, boolean | string>;
+    rollout?: Record<string, number>;
   }>;
 }
 
@@ -76,6 +77,7 @@ export class ImportApp {
           environmentId: envId,
           enabled: typeof value === "boolean" ? value : false,
           stringValue: typeof value === "string" ? value : undefined,
+          rolloutPercentage: toggleData.rollout?.[envKey],
         });
         await this.toggleValueRepository.save(tv);
       }
