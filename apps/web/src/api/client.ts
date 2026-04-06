@@ -281,7 +281,7 @@ export const api = {
         request<{ entries: AuditLogEntryDTO[]; total: number }>(`/admin/audit-log?limit=${limit}&offset=${offset}`),
     },
     health: () =>
-      request<{ database: string; users: number; apps: number; uptime: number }>("/admin/health"),
+      request<{ database: string; users: number; apps: number; uptime: number; memoryMb: number; loadAvg: [number, number, number] }>("/admin/health"),
     export: () =>
       request<unknown>("/admin/export"),
     import: (data: unknown) =>
