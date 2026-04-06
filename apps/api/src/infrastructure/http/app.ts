@@ -209,7 +209,7 @@ export function createExpressApp(
     auth,
     environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache, recordAudit)
   );
-  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit));
+  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit, toggleValueRepository, environmentRepository));
 
   return app;
 }

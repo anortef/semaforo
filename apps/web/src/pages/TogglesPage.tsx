@@ -22,6 +22,7 @@ export function TogglesPage() {
   const [showForm, setShowForm] = useState(false);
   const [selectedEnvKey, setSelectedEnvKey] = useState("");
   const [envKeys, setEnvKeys] = useState<Map<string, ApiKeyDTO[]>>(new Map());
+  const [updatedAtMap, setUpdatedAtMap] = useState<Map<string, string>>(new Map());
 
   const loadToggleStates = useCallback(async () => {
     if (!app) return;
@@ -47,6 +48,11 @@ export function TogglesPage() {
     api.apps.get(appId).then(setApp).catch(console.error);
     api.environments.list(appId).then(setEnvironments).catch(console.error);
     api.toggles.list(appId).then(setToggles).catch(console.error);
+    api.toggles.getValues(appId).then((values) => {
+      const map = new Map<string, string>();
+      for (const v of values) map.set(`${v.toggleId}:${v.environmentId}`, v.updatedAt);
+      setUpdatedAtMap(map);
+    }).catch(console.error);
   }, [appId]);
 
   useEffect(() => {
@@ -97,7 +103,8 @@ export function TogglesPage() {
       return next;
     });
     try {
-      await api.toggles.setValue(toggleId, envId, enabled);
+      const result = await api.toggles.setValue(toggleId, envId, enabled);
+      setUpdatedAtMap((prev) => new Map(prev).set(`${toggleId}:${envId}`, result.updatedAt));
     } catch {
       setToggleStates((prev) => {
         const next = new Map(prev);
@@ -108,6 +115,17 @@ export function TogglesPage() {
   }
 
   const selectedEnv = environments.find((e) => e.key === selectedEnvKey);
+  function formatTimeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60_000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
   const selectedEnvApiKey = selectedEnv
     ? (envKeys.get(selectedEnv.id.value) ?? [])[0]?.key
     : undefined;
@@ -258,7 +276,7 @@ ${toggles.map((t) => {
                       const stateKey = `${toggle.id.value}:${env.id.value}`;
                       const isEnabled = toggleStates.get(stateKey) ?? false;
                       return (
-                        <td key={env.id.value} style={{ textAlign: "center" }}>
+                        <td key={env.id.value} style={{ textAlign: "center", verticalAlign: "middle" }}>
                           <label className="toggle-switch">
                             <input
                               type="checkbox"
@@ -273,6 +291,12 @@ ${toggles.map((t) => {
                             />
                             <span className="toggle-slider" />
                           </label>
+                          {updatedAtMap.get(stateKey) && (
+                            <div style={{ fontSize: "0.625rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}
+                              title={new Date(updatedAtMap.get(stateKey)!).toLocaleString()}>
+                              {formatTimeAgo(updatedAtMap.get(stateKey)!)}
+                            </div>
+                          )}
                         </td>
                       );
                     })}

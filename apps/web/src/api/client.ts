@@ -64,6 +64,7 @@ export interface ToggleValueDTO {
   toggleId: string;
   environmentId: string;
   enabled: boolean;
+  updatedAt: string;
 }
 
 export interface AuthUserDTO {
@@ -213,6 +214,8 @@ export const api = {
       request<Record<string, boolean>>(
         `/apps/${appKey}/environments/${envKey}/toggle-states`
       ),
+    getValues: (appId: string) =>
+      request<ToggleValueDTO[]>(`/apps/${appId}/toggle-values`),
     setValue: (toggleId: string, environmentId: string, enabled: boolean) =>
       request<ToggleValueDTO>(
         `/toggles/${toggleId}/environments/${environmentId}`,

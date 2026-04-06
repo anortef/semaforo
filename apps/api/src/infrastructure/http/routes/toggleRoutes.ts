@@ -4,13 +4,16 @@ import type { SetToggleValue } from "../../../application/SetToggleValue.js";
 import type { ListToggles } from "../../../application/ListToggles.js";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
+import type { ToggleValueRepository, EnvironmentRepository } from "@semaforo/domain";
 
 export function toggleRoutes(
   createToggle: CreateFeatureToggle,
   setToggleValue: SetToggleValue,
   listToggles: ListToggles,
   getPublicToggles?: GetPublicToggles,
-  audit?: RecordAuditEvent
+  audit?: RecordAuditEvent,
+  toggleValueRepository?: ToggleValueRepository,
+  environmentRepository?: EnvironmentRepository
 ): Router {
   const router = Router();
 
@@ -37,6 +40,22 @@ export function toggleRoutes(
    *               items:
    *                 $ref: '#/components/schemas/FeatureToggle'
    */
+  if (toggleValueRepository && environmentRepository) {
+    router.get("/apps/:appId/toggle-values", async (req, res) => {
+      try {
+        const envs = await environmentRepository.findByAppId(req.params.appId);
+        const allValues = [];
+        for (const env of envs) {
+          const values = await toggleValueRepository.findByEnvironmentId(env.id.value);
+          allValues.push(...values);
+        }
+        res.json(allValues);
+      } catch {
+        res.status(500).json({ error: "Failed to fetch toggle values" });
+      }
+    });
+  }
+
   router.get("/apps/:appId/toggles", async (req, res) => {
     try {
       const toggles = await listToggles.execute(req.params.appId);
