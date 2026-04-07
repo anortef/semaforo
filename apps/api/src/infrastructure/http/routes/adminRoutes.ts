@@ -322,10 +322,19 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
       router.post("/backups/:filename/restore", async (req, res) => {
         try {
           const data = await deps.scheduledBackup!.readBackup(req.params.filename);
+          const cleanRestore = req.body?.cleanRestore === true;
+
+          if (cleanRestore) {
+            await deps.pool.query("DELETE FROM apps");
+            await deps.pool.query("DELETE FROM users WHERE email != 'admin@semaforo.local'");
+            await deps.pool.query("DELETE FROM system_settings");
+            await deps.pool.query("DELETE FROM audit_log");
+          }
+
           const result = await deps.importAll!.execute(data as any);
           await deps.recordAudit.execute({
             userId: res.locals.userId,
-            action: "backup.restored",
+            action: cleanRestore ? "backup.clean_restored" : "backup.restored",
             resourceType: "system",
             resourceId: req.params.filename,
           });

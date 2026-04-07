@@ -35,6 +35,7 @@ export function AdminSettingsPage() {
   const [restoring, setRestoring] = useState(false);
   const [restoreWarnings, setRestoreWarnings] = useState<string[]>([]);
   const [restoreError, setRestoreError] = useState("");
+  const [cleanRestore, setCleanRestore] = useState(false);
   const [validating, setValidating] = useState<string | null>(null);
   const [validationReport, setValidationReport] = useState<BackupValidationReport | null>(null);
   const [validationError, setValidationError] = useState("");
@@ -103,7 +104,7 @@ export function AdminSettingsPage() {
     setRestoreError("");
     setRestoreWarnings([]);
     try {
-      const result = await api.admin.backups.restore(filename);
+      const result = await api.admin.backups.restore(filename, cleanRestore);
       if (result.warnings?.length > 0) {
         setRestoreWarnings(result.warnings);
       }
@@ -113,6 +114,7 @@ export function AdminSettingsPage() {
     }
     setRestoring(false);
     setRestoreConfirm(null);
+    setCleanRestore(false);
   }
 
   async function handleValidate(filename: string) {
@@ -405,7 +407,7 @@ export function AdminSettingsPage() {
             display: "flex", alignItems: "center", justifyContent: "center",
             zIndex: 1000,
           }}
-          onClick={() => !restoring && setRestoreConfirm(null)}
+          onClick={() => { if (!restoring) { setRestoreConfirm(null); setCleanRestore(false); } }}
         >
           <div
             className="card"
@@ -424,11 +426,27 @@ export function AdminSettingsPage() {
             <p style={{ fontSize: "0.8125rem", marginBottom: "1rem", color: "var(--color-danger, #dc3545)", fontWeight: 600 }}>
               Warning: This will import all data from the backup. Existing data that conflicts with the backup may be overwritten. This action cannot be undone.
             </p>
+            <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", marginBottom: "0.75rem", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={cleanRestore}
+                onChange={(e) => setCleanRestore(e.target.checked)}
+                style={{ marginTop: "0.2rem" }}
+              />
+              <span style={{ fontSize: "0.8125rem" }}>
+                Erase all existing data before restoring (keeps admin account and .env values)
+              </span>
+            </label>
+            {cleanRestore && (
+              <p style={{ fontSize: "0.8125rem", marginBottom: "0.75rem", padding: "0.5rem", background: "var(--color-danger-bg, #f8d7da)", border: "1px solid var(--color-danger, #dc3545)", borderRadius: "var(--radius-sm)", color: "var(--color-danger, #dc3545)", fontWeight: 600 }}>
+                All apps, environments, toggles, secrets, users (except admin), settings, and audit logs will be permanently deleted before the backup is imported.
+              </p>
+            )}
             <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
               <button
                 className="btn btn-ghost"
                 disabled={restoring}
-                onClick={() => setRestoreConfirm(null)}
+                onClick={() => { setRestoreConfirm(null); setCleanRestore(false); }}
               >
                 Cancel
               </button>
@@ -438,7 +456,7 @@ export function AdminSettingsPage() {
                 disabled={restoring}
                 onClick={() => handleRestore(restoreConfirm)}
               >
-                {restoring ? "Restoring..." : "Restore Backup"}
+                {restoring ? "Restoring..." : cleanRestore ? "Erase & Restore" : "Restore Backup"}
               </button>
             </div>
           </div>

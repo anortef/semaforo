@@ -354,8 +354,11 @@ export const api = {
         request<Array<{ filename: string; size: number; createdAt: string }>>("/admin/backups"),
       create: () =>
         request<{ filename: string; size: number; createdAt: string }>("/admin/backups", { method: "POST" }),
-      restore: (filename: string) =>
-        request<{ success: boolean; warnings: string[] }>(`/admin/backups/${encodeURIComponent(filename)}/restore`, { method: "POST" }),
+      restore: (filename: string, cleanRestore = false) =>
+        request<{ success: boolean; warnings: string[] }>(`/admin/backups/${encodeURIComponent(filename)}/restore`, {
+          method: "POST",
+          body: JSON.stringify({ cleanRestore }),
+        }),
       validate: (filename: string) =>
         request<BackupValidationReport>(`/admin/backups/${encodeURIComponent(filename)}/validate`, { method: "POST" }),
     },

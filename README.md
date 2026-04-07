@@ -117,6 +117,7 @@ Automated compressed backups (`.json.gz`) stored in the `./backups` volume. Conf
 - **History**: Table showing all backup files with size and timestamp
 - **Validate**: Dry-run a backup to check structure, count entities, and detect conflicts before restoring
 - **Restore**: Restore a backup with a confirmation modal warning that existing conflicting data may be overwritten
+- **Clean restore**: Optional checkbox to erase all existing data (apps, users, settings, audit logs) before restoring, keeping only the admin account and .env values
 
 Old backups are automatically pruned based on the retention setting. Backups are bind-mounted at `./backups` so they persist outside Docker.
 
