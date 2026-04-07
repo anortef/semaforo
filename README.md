@@ -115,6 +115,8 @@ Automated compressed backups (`.json.gz`) stored in the `./backups` volume. Conf
 - **Retention**: 7 days, 15 days, 30 days, or custom number of days
 - **Manual backup**: "Backup Now" button for on-demand backups
 - **History**: Table showing all backup files with size and timestamp
+- **Validate**: Dry-run a backup to check structure, count entities, and detect conflicts before restoring
+- **Restore**: Restore a backup with a confirmation modal warning that existing conflicting data may be overwritten
 
 Old backups are automatically pruned based on the retention setting. Backups are bind-mounted at `./backups` so they persist outside Docker.
 
@@ -355,6 +357,8 @@ docs/           Architecture and domain documentation
 | GET | `/api/admin/health` | API service health |
 | GET | `/api/admin/backups` | List backup files |
 | POST | `/api/admin/backups` | Create backup now |
+| POST | `/api/admin/backups/:filename/validate` | Dry-run validate a backup |
+| POST | `/api/admin/backups/:filename/restore` | Restore from a backup |
 | GET | `/api/admin/export` | Export full instance |
 | POST | `/api/admin/import` | Import full instance |
 
