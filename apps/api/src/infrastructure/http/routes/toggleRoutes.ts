@@ -3,6 +3,7 @@ import type { CreateFeatureToggle } from "../../../application/CreateFeatureTogg
 import type { SetToggleValue } from "../../../application/SetToggleValue.js";
 import type { ListToggles } from "../../../application/ListToggles.js";
 import type { GetPublicToggles } from "../../../application/GetPublicToggles.js";
+import type { DeleteFeatureToggle } from "../../../application/DeleteFeatureToggle.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type { ToggleValueRepository, EnvironmentRepository } from "@semaforo/domain";
 
@@ -13,7 +14,8 @@ export function toggleRoutes(
   getPublicToggles?: GetPublicToggles,
   audit?: RecordAuditEvent,
   toggleValueRepository?: ToggleValueRepository,
-  environmentRepository?: EnvironmentRepository
+  environmentRepository?: EnvironmentRepository,
+  deleteToggle?: DeleteFeatureToggle
 ): Router {
   const router = Router();
 
@@ -220,6 +222,28 @@ export function toggleRoutes(
       }
     }
   });
+
+  if (deleteToggle) {
+    router.delete("/toggles/:toggleId", async (req, res) => {
+      try {
+        await deleteToggle.execute(req.params.toggleId);
+        audit?.execute({
+          userId: res.locals.userId,
+          action: "toggle.deleted",
+          resourceType: "toggle",
+          resourceId: req.params.toggleId,
+        });
+        res.status(204).end();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to delete toggle";
+        if (message.includes("not found")) {
+          res.status(404).json({ error: message });
+        } else {
+          res.status(500).json({ error: message });
+        }
+      }
+    });
+  }
 
   if (getPublicToggles) {
     router.get(

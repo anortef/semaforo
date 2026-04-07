@@ -23,6 +23,8 @@ export function SecretsPage() {
   const [error, setError] = useState("");
   const [selectedEnvKey, setSelectedEnvKey] = useState("");
   const [envKeys, setEnvKeys] = useState<Map<string, ApiKeyDTO[]>>(new Map());
+  const [deleteConfirm, setDeleteConfirm] = useState<SecretDTO | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!appId) return;
@@ -117,11 +119,15 @@ export function SecretsPage() {
     } catch { /* ignore */ }
   }
 
-  async function handleDelete(secretId: string) {
+  async function handleDelete() {
+    if (!deleteConfirm) return;
+    setDeleting(true);
     try {
-      await api.secrets.delete(secretId);
-      setSecrets((prev) => prev.filter((s) => s.id.value !== secretId));
+      await api.secrets.delete(deleteConfirm.id.value);
+      setSecrets((prev) => prev.filter((s) => s.id.value !== deleteConfirm.id.value));
     } catch { /* ignore */ }
+    setDeleting(false);
+    setDeleteConfirm(null);
   }
 
   function formatTimeAgo(dateStr: string): string {
@@ -211,7 +217,7 @@ export function SecretsPage() {
                   <span style={{ marginLeft: "0.5rem", fontSize: "0.8125rem", color: "var(--color-text-muted)" }}>{secret.description}</span>
                 )}
               </div>
-              <button className="btn btn-ghost" style={{ fontSize: "0.75rem", color: "var(--color-danger, #e53e3e)" }} onClick={() => handleDelete(secret.id.value)}>
+              <button className="btn btn-ghost" style={{ fontSize: "0.75rem", color: "var(--color-danger, #dc3545)" }} onClick={() => setDeleteConfirm(secret)}>
                 Delete
               </button>
             </div>
@@ -256,6 +262,34 @@ export function SecretsPage() {
             })}
           </div>
         ))
+      )}
+
+      {deleteConfirm && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={() => !deleting && setDeleteConfirm(null)}
+        >
+          <div className="card" style={{ maxWidth: "420px", width: "90%", margin: 0 }} onClick={(e) => e.stopPropagation()}>
+            <div className="card-title" style={{ color: "var(--color-danger, #dc3545)" }}>Delete Secret</div>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "0.5rem" }}>
+              Are you sure you want to delete <strong>{deleteConfirm.key}</strong>?
+            </p>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "1rem", color: "var(--color-danger, #dc3545)", fontWeight: 600 }}>
+              This will permanently delete the secret and all its encrypted values across every environment.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" disabled={deleting} onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                style={{ background: "var(--color-danger, #dc3545)", borderColor: "var(--color-danger, #dc3545)" }}
+                disabled={deleting}
+                onClick={handleDelete}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

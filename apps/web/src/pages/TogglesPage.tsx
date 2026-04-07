@@ -24,6 +24,8 @@ export function TogglesPage() {
   const [selectedEnvKey, setSelectedEnvKey] = useState("");
   const [envKeys, setEnvKeys] = useState<Map<string, ApiKeyDTO[]>>(new Map());
   const [updatedAtMap, setUpdatedAtMap] = useState<Map<string, string>>(new Map());
+  const [deleteConfirm, setDeleteConfirm] = useState<FeatureToggleDTO | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const booleanToggles = toggles.filter((t) => t.type !== "string");
 
@@ -125,6 +127,17 @@ export function TogglesPage() {
     } else {
       setAbExpandedToggle(toggleId);
     }
+  }
+
+  async function handleDeleteToggle() {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await api.toggles.delete(deleteConfirm.id.value);
+      setToggles((prev) => prev.filter((t) => t.id.value !== deleteConfirm.id.value));
+    } catch { /* ignore */ }
+    setDeleting(false);
+    setDeleteConfirm(null);
   }
 
   function isAbActive(toggleId: string): boolean {
@@ -240,6 +253,13 @@ export function TogglesPage() {
                           >
                             A/B Testing
                           </button>
+                          <button
+                            className="btn btn-ghost"
+                            style={{ marginLeft: "0.25rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: "var(--color-danger, #dc3545)" }}
+                            onClick={() => setDeleteConfirm(toggle)}
+                          >
+                            Delete
+                          </button>
                         </td>
                         {environments.map((env) => {
                           const stateKey = `${toggle.id.value}:${env.id.value}`;
@@ -306,6 +326,34 @@ export function TogglesPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={() => !deleting && setDeleteConfirm(null)}
+        >
+          <div className="card" style={{ maxWidth: "420px", width: "90%", margin: 0 }} onClick={(e) => e.stopPropagation()}>
+            <div className="card-title" style={{ color: "var(--color-danger, #dc3545)" }}>Delete Toggle</div>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "0.5rem" }}>
+              Are you sure you want to delete <strong>{deleteConfirm.name}</strong> ({deleteConfirm.key})?
+            </p>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "1rem", color: "var(--color-danger, #dc3545)", fontWeight: 600 }}>
+              This will permanently delete the toggle and all its values across every environment.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" disabled={deleting} onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                style={{ background: "var(--color-danger, #dc3545)", borderColor: "var(--color-danger, #dc3545)" }}
+                disabled={deleting}
+                onClick={handleDeleteToggle}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

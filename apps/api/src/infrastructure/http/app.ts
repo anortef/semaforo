@@ -53,6 +53,8 @@ import { RemoveAppMember } from "../../application/RemoveAppMember.js";
 import { ListAppMembers } from "../../application/ListAppMembers.js";
 import { CreateSecret } from "../../application/CreateSecret.js";
 import { ListSecrets } from "../../application/ListSecrets.js";
+import { DeleteApp } from "../../application/DeleteApp.js";
+import { DeleteFeatureToggle } from "../../application/DeleteFeatureToggle.js";
 import { DeleteSecret } from "../../application/DeleteSecret.js";
 import { SetSecretValue } from "../../application/SetSecretValue.js";
 import { GetSecretValue } from "../../application/GetSecretValue.js";
@@ -157,12 +159,15 @@ export function createExpressApp(
   const addAppMember = new AddAppMember(appMemberRepository);
   const removeAppMember = new RemoveAppMember(appMemberRepository);
   const listAppMembersUseCase = new ListAppMembers(appMemberRepository);
+  const deleteFeatureToggle = new DeleteFeatureToggle(toggleRepository, appRepository, environmentRepository, cache);
 
   // Secrets
   const resolvedSecretCache = secretCache ?? new NoOpSecretCache();
   const encryptionService = config.encryption.key
     ? createEncryptionService(config.encryption.key)
     : null;
+
+  const deleteAppUseCase = new DeleteApp(appRepository, environmentRepository, cache, resolvedSecretCache);
 
   // Admin use cases
   const adminCreateUser = new AdminCreateUser(userRepository);
@@ -242,7 +247,7 @@ export function createExpressApp(
   }));
 
   // Protected routes (require JWT auth)
-  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics, exportApp, importApp, recordAudit, getAppAuditLog, userRepository));
+  app.use("/api/apps", auth, appRoutes(createAppUseCase, listApps, getApp, getAppMetrics, exportApp, importApp, recordAudit, getAppAuditLog, userRepository, deleteAppUseCase));
   app.use("/api/apps", auth, appMemberRoutes(addAppMember, removeAppMember, listAppMembersUseCase, userRepository, recordAudit));
   app.use("/api/environments", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
   app.use("/api/api-keys", auth, apiKeyRoutes(createApiKeyUseCase, listApiKeysUseCase, deleteApiKeyUseCase, securityLogger));
@@ -251,7 +256,7 @@ export function createExpressApp(
     auth,
     environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache, recordAudit)
   );
-  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit, toggleValueRepository, environmentRepository));
+  app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit, toggleValueRepository, environmentRepository, deleteFeatureToggle));
 
   // Secret routes (only if encryption key is configured)
   if (encryptionService) {

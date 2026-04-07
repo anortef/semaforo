@@ -220,6 +220,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    delete: (appId: string) =>
+      request<void>(`/apps/${appId}`, { method: "DELETE" }),
   },
   environments: {
     list: (appId: string) =>
@@ -267,6 +269,8 @@ export const api = {
           body: JSON.stringify(data),
         }
       ),
+    delete: (toggleId: string) =>
+      request<void>(`/toggles/${toggleId}`, { method: "DELETE" }),
   },
   members: {
     list: (appId: string) =>

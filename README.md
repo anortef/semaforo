@@ -284,6 +284,7 @@ docs/           Architecture and domain documentation
 | GET | `/api/apps/:appId/audit-log` | App audit log |
 | GET | `/api/apps/:appId/export` | Export app as JSON |
 | POST | `/api/apps/import` | Import app from JSON |
+| DELETE | `/api/apps/:appId` | Delete app (cascades all data) |
 
 ### Environments
 
@@ -301,6 +302,7 @@ docs/           Architecture and domain documentation
 | GET | `/api/apps/:appId/toggles` | List toggles |
 | POST | `/api/apps/:appId/toggles` | Create toggle (type: boolean or string) |
 | PUT | `/api/toggles/:toggleId/environments/:envId` | Set value (enabled, stringValue, rolloutPercentage) |
+| DELETE | `/api/toggles/:toggleId` | Delete toggle (cascades values) |
 | GET | `/api/apps/:appId/toggle-values` | All toggle values with timestamps |
 
 ### Secrets
