@@ -140,6 +140,26 @@ export interface RevealedSecretValueDTO {
   value: string;
 }
 
+export interface BackupValidationReport {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  summary: {
+    users: number;
+    settings: number;
+    apps: number;
+    environments: number;
+    toggles: number;
+    secrets: number;
+    apiKeys: number;
+  };
+  conflicts: {
+    existingUsers: string[];
+    existingApps: string[];
+  };
+  exportedAt: string | null;
+}
+
 export interface RequestMetricsDTO {
   current: number;
   last5m: number;
@@ -334,6 +354,10 @@ export const api = {
         request<Array<{ filename: string; size: number; createdAt: string }>>("/admin/backups"),
       create: () =>
         request<{ filename: string; size: number; createdAt: string }>("/admin/backups", { method: "POST" }),
+      restore: (filename: string) =>
+        request<{ success: boolean; warnings: string[] }>(`/admin/backups/${encodeURIComponent(filename)}/restore`, { method: "POST" }),
+      validate: (filename: string) =>
+        request<BackupValidationReport>(`/admin/backups/${encodeURIComponent(filename)}/validate`, { method: "POST" }),
     },
     health: () =>
       request<{ database: string; users: number; apps: number; uptime: number; memoryMb: number; loadAvg: [number, number, number] }>("/admin/health"),

@@ -305,6 +305,38 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
         res.status(500).json({ error: msg });
       }
     });
+
+    if (deps.importAll) {
+      router.post("/backups/:filename/validate", async (req, res) => {
+        try {
+          const data = await deps.scheduledBackup!.readBackup(req.params.filename);
+          const report = await deps.importAll!.validate(data);
+          res.json(report);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : "Validation failed";
+          const status = msg === "Backup file not found" || msg === "Invalid backup filename" ? 404 : 500;
+          res.status(status).json({ error: msg });
+        }
+      });
+
+      router.post("/backups/:filename/restore", async (req, res) => {
+        try {
+          const data = await deps.scheduledBackup!.readBackup(req.params.filename);
+          const result = await deps.importAll!.execute(data as any);
+          await deps.recordAudit.execute({
+            userId: res.locals.userId,
+            action: "backup.restored",
+            resourceType: "system",
+            resourceId: req.params.filename,
+          });
+          res.json(result);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : "Restore failed";
+          const status = msg === "Backup file not found" || msg === "Invalid backup filename" ? 404 : 500;
+          res.status(status).json({ error: msg });
+        }
+      });
+    }
   }
 
   return router;

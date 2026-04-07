@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { api, type SystemSettingDTO } from "../../api/client.js";
+import { api, type SystemSettingDTO, type BackupValidationReport } from "../../api/client.js";
 import { useApps } from "../../context/AppsContext.js";
 
 const KNOWN_SETTINGS = [
@@ -31,6 +31,13 @@ export function AdminSettingsPage() {
   const [backupCreating, setBackupCreating] = useState(false);
   const [customSchedule, setCustomSchedule] = useState(false);
   const [customRetention, setCustomRetention] = useState(false);
+  const [restoreConfirm, setRestoreConfirm] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreWarnings, setRestoreWarnings] = useState<string[]>([]);
+  const [restoreError, setRestoreError] = useState("");
+  const [validating, setValidating] = useState<string | null>(null);
+  const [validationReport, setValidationReport] = useState<BackupValidationReport | null>(null);
+  const [validationError, setValidationError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { refresh } = useApps();
 
@@ -89,6 +96,36 @@ export function AdminSettingsPage() {
       setImportError(err instanceof Error ? err.message : "Import failed");
     }
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  async function handleRestore(filename: string) {
+    setRestoring(true);
+    setRestoreError("");
+    setRestoreWarnings([]);
+    try {
+      const result = await api.admin.backups.restore(filename);
+      if (result.warnings?.length > 0) {
+        setRestoreWarnings(result.warnings);
+      }
+      await refresh();
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Restore failed");
+    }
+    setRestoring(false);
+    setRestoreConfirm(null);
+  }
+
+  async function handleValidate(filename: string) {
+    setValidating(filename);
+    setValidationReport(null);
+    setValidationError("");
+    try {
+      const report = await api.admin.backups.validate(filename);
+      setValidationReport(report);
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : "Validation failed");
+    }
+    setValidating(null);
   }
 
   return (
@@ -234,6 +271,16 @@ export function AdminSettingsPage() {
         </div>
       </div>
 
+      {restoreError && <p className="error-text" style={{ marginBottom: "1rem" }}>{restoreError}</p>}
+      {restoreWarnings.length > 0 && (
+        <div className="card" style={{ marginBottom: "1rem", background: "var(--color-warning-bg, #fef3cd)", border: "1px solid var(--color-warning-border, #ffc107)" }}>
+          <div className="card-title" style={{ fontSize: "0.8125rem" }}>Restore Warnings</div>
+          <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.8125rem" }}>
+            {restoreWarnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
       {backups.length > 0 && (
         <div className="card">
           <div className="card-title">Backup History</div>
@@ -244,6 +291,7 @@ export function AdminSettingsPage() {
                   <th>Filename</th>
                   <th>Size</th>
                   <th>Created</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -252,10 +300,147 @@ export function AdminSettingsPage() {
                     <td style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{b.filename}</td>
                     <td>{(b.size / 1024).toFixed(1)} KB</td>
                     <td>{new Date(b.createdAt).toLocaleString()}</td>
+                    <td>
+                      <div style={{ display: "flex", gap: "0.25rem" }}>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                          disabled={validating === b.filename}
+                          onClick={() => handleValidate(b.filename)}
+                        >
+                          {validating === b.filename ? "Validating..." : "Validate"}
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.5rem" }}
+                          onClick={() => setRestoreConfirm(b.filename)}
+                        >
+                          Restore
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {validationError && <p className="error-text" style={{ marginBottom: "1rem" }}>{validationError}</p>}
+      {validationReport && (
+        <div className="card" style={{
+          marginBottom: "1rem",
+          border: `1px solid ${validationReport.valid ? "var(--color-success-border, #28a745)" : "var(--color-danger, #dc3545)"}`,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <div className="card-title" style={{
+              margin: 0,
+              color: validationReport.valid ? "var(--color-success, #28a745)" : "var(--color-danger, #dc3545)",
+            }}>
+              {validationReport.valid ? "Backup Valid" : "Backup Has Errors"}
+            </div>
+            <button
+              className="btn btn-ghost"
+              style={{ fontSize: "0.75rem", padding: "0.125rem 0.375rem" }}
+              onClick={() => { setValidationReport(null); setValidationError(""); }}
+            >
+              Dismiss
+            </button>
+          </div>
+          {validationReport.exportedAt && (
+            <p style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)", marginBottom: "0.75rem" }}>
+              Exported at: {new Date(validationReport.exportedAt).toLocaleString()}
+            </p>
+          )}
+          <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "0.75rem", fontSize: "0.8125rem" }}>
+            <span><strong>{validationReport.summary.users}</strong> users</span>
+            <span><strong>{validationReport.summary.apps}</strong> apps</span>
+            <span><strong>{validationReport.summary.environments}</strong> environments</span>
+            <span><strong>{validationReport.summary.toggles}</strong> toggles</span>
+            <span><strong>{validationReport.summary.secrets}</strong> secrets</span>
+            <span><strong>{validationReport.summary.settings}</strong> settings</span>
+            <span><strong>{validationReport.summary.apiKeys}</strong> API keys</span>
+          </div>
+          {validationReport.errors.length > 0 && (
+            <div style={{ marginBottom: "0.5rem" }}>
+              <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-danger, #dc3545)", marginBottom: "0.25rem" }}>Errors</div>
+              <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.8125rem" }}>
+                {validationReport.errors.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+          {validationReport.conflicts.existingUsers.length > 0 && (
+            <div style={{ marginBottom: "0.5rem" }}>
+              <div style={{ fontSize: "0.75rem", fontWeight: 600, marginBottom: "0.25rem" }}>Existing users (will be skipped)</div>
+              <p style={{ margin: 0, fontSize: "0.75rem", fontFamily: "monospace" }}>
+                {validationReport.conflicts.existingUsers.join(", ")}
+              </p>
+            </div>
+          )}
+          {validationReport.conflicts.existingApps.length > 0 && (
+            <div style={{ marginBottom: "0.5rem" }}>
+              <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-danger, #dc3545)", marginBottom: "0.25rem" }}>Existing apps (will fail to import)</div>
+              <p style={{ margin: 0, fontSize: "0.75rem", fontFamily: "monospace" }}>
+                {validationReport.conflicts.existingApps.join(", ")}
+              </p>
+            </div>
+          )}
+          {validationReport.warnings.length > 0 && (
+            <div>
+              <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--color-warning, #ffc107)", marginBottom: "0.25rem" }}>Warnings</div>
+              <ul style={{ margin: 0, paddingLeft: "1.25rem", fontSize: "0.8125rem" }}>
+                {validationReport.warnings.map((w, i) => <li key={i}>{w}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {restoreConfirm && (
+        <div
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0, 0, 0, 0.5)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => !restoring && setRestoreConfirm(null)}
+        >
+          <div
+            className="card"
+            style={{ maxWidth: "480px", width: "90%", margin: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="card-title" style={{ color: "var(--color-danger, #dc3545)" }}>
+              Confirm Restore
+            </div>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "0.5rem" }}>
+              You are about to restore from:
+            </p>
+            <p style={{ fontFamily: "monospace", fontSize: "0.75rem", marginBottom: "1rem", wordBreak: "break-all" }}>
+              {restoreConfirm}
+            </p>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "1rem", color: "var(--color-danger, #dc3545)", fontWeight: 600 }}>
+              Warning: This will import all data from the backup. Existing data that conflicts with the backup may be overwritten. This action cannot be undone.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button
+                className="btn btn-ghost"
+                disabled={restoring}
+                onClick={() => setRestoreConfirm(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ background: "var(--color-danger, #dc3545)", borderColor: "var(--color-danger, #dc3545)" }}
+                disabled={restoring}
+                onClick={() => handleRestore(restoreConfirm)}
+              >
+                {restoring ? "Restoring..." : "Restore Backup"}
+              </button>
+            </div>
           </div>
         </div>
       )}

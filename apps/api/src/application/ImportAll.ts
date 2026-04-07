@@ -20,6 +20,26 @@ export interface ImportResult {
   warnings: string[];
 }
 
+export interface ValidationReport {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  summary: {
+    users: number;
+    settings: number;
+    apps: number;
+    environments: number;
+    toggles: number;
+    secrets: number;
+    apiKeys: number;
+  };
+  conflicts: {
+    existingUsers: string[];
+    existingApps: string[];
+  };
+  exportedAt: string | null;
+}
+
 export interface FullExport {
   users: Array<{
     email: string;
@@ -144,5 +164,94 @@ export class ImportAll {
     );
 
     return { success: true, warnings };
+  }
+
+  async validate(data: unknown): Promise<ValidationReport> {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const conflicts = { existingUsers: [] as string[], existingApps: [] as string[] };
+    const summary = { users: 0, settings: 0, apps: 0, environments: 0, toggles: 0, secrets: 0, apiKeys: 0 };
+
+    // Structure validation
+    if (!data || typeof data !== "object") {
+      return { valid: false, errors: ["Backup data is not a valid object"], warnings, summary, conflicts, exportedAt: null };
+    }
+
+    const d = data as Record<string, unknown>;
+
+    if (!Array.isArray(d.apps)) {
+      errors.push("Missing or invalid 'apps' array");
+    }
+    if (!Array.isArray(d.users)) {
+      errors.push("Missing or invalid 'users' array");
+    }
+    if (!Array.isArray(d.settings)) {
+      errors.push("Missing or invalid 'settings' array");
+    }
+
+    if (errors.length > 0) {
+      return { valid: false, errors, warnings, summary, conflicts, exportedAt: (d.exportedAt as string) ?? null };
+    }
+
+    const typed = data as FullExport;
+    summary.users = typed.users.length;
+    summary.settings = typed.settings.length;
+    summary.apps = typed.apps.length;
+
+    for (const appData of typed.apps) {
+      if (!appData.app?.key) {
+        errors.push(`App entry missing 'app.key'`);
+        continue;
+      }
+      summary.environments += appData.environments?.length ?? 0;
+      summary.toggles += appData.toggles?.length ?? 0;
+      summary.secrets += appData.secrets?.length ?? 0;
+      summary.apiKeys += appData.apiKeys?.length ?? 0;
+    }
+
+    // Check conflicts against existing data
+    for (const u of typed.users) {
+      if (!u.email) {
+        errors.push("User entry missing 'email'");
+        continue;
+      }
+      const existing = await this.userRepository.findByEmail(u.email);
+      if (existing) {
+        conflicts.existingUsers.push(u.email);
+      }
+    }
+
+    for (const appData of typed.apps) {
+      if (!appData.app?.key) continue;
+      const existing = await this.appRepository.findByKey(appData.app.key);
+      if (existing) {
+        conflicts.existingApps.push(appData.app.key);
+      }
+    }
+
+    // Warnings
+    if (conflicts.existingUsers.length > 0) {
+      warnings.push(`${conflicts.existingUsers.length} user(s) already exist and will be skipped`);
+    }
+    if (conflicts.existingApps.length > 0) {
+      errors.push(`${conflicts.existingApps.length} app(s) already exist and will fail to import: ${conflicts.existingApps.join(", ")}`);
+    }
+
+    const hasSecrets = typed.apps.some((a) => a.secrets && a.secrets.length > 0);
+    if (hasSecrets) {
+      warnings.push("Backup contains encrypted secrets — requires matching ENCRYPTION_KEY to decrypt");
+    }
+    if (typed.users.length > 0) {
+      warnings.push("Imported users retain original password hashes — ensure JWT_SECRET matches the original instance");
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings,
+      summary,
+      conflicts,
+      exportedAt: typed.exportedAt ?? null,
+    };
   }
 }

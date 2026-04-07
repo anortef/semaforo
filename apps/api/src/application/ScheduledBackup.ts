@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { createGzip } from "node:zlib";
+import { createGzip, createGunzip } from "node:zlib";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import type { ExportAll } from "./ExportAll.js";
@@ -82,6 +82,32 @@ export class ScheduledBackup {
         };
       })
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async readBackup(filename: string): Promise<unknown> {
+    const safeName = path.basename(filename);
+    if (!safeName.startsWith("semaforo-backup-") || !safeName.endsWith(".json.gz")) {
+      throw new Error("Invalid backup filename");
+    }
+
+    const filePath = path.join(this.backupDir, safeName);
+    if (!fs.existsSync(filePath)) {
+      throw new Error("Backup file not found");
+    }
+
+    const chunks: Buffer[] = [];
+    await pipeline(
+      fs.createReadStream(filePath),
+      createGunzip(),
+      async function* (source) {
+        for await (const chunk of source) {
+          chunks.push(Buffer.from(chunk));
+        }
+        yield Buffer.concat(chunks);
+      }
+    );
+
+    return JSON.parse(Buffer.concat(chunks).toString("utf-8"));
   }
 
   async getScheduleMs(): Promise<number | null> {
