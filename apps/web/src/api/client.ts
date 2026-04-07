@@ -243,6 +243,8 @@ export const api = {
       request<{ cleared: boolean }>(`/environments/${environmentId}/cache`, {
         method: "DELETE",
       }),
+    delete: (environmentId: string) =>
+      request<void>(`/environments/${environmentId}`, { method: "DELETE" }),
   },
   toggles: {
     list: (appId: string) =>

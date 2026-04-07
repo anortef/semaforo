@@ -3,6 +3,7 @@ import type { AppRepository, EnvironmentRepository } from "@semaforo/domain";
 import type { CreateEnvironment } from "../../../application/CreateEnvironment.js";
 import type { ListEnvironments } from "../../../application/ListEnvironments.js";
 import type { UpdateEnvironment } from "../../../application/UpdateEnvironment.js";
+import type { DeleteEnvironment } from "../../../application/DeleteEnvironment.js";
 import type { ToggleCache } from "../../cache/RedisToggleCache.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 
@@ -13,7 +14,8 @@ export function environmentRoutes(
   appRepository: AppRepository,
   environmentRepository: EnvironmentRepository,
   cache: ToggleCache,
-  audit?: RecordAuditEvent
+  audit?: RecordAuditEvent,
+  deleteEnvironment?: DeleteEnvironment
 ): Router {
   const router = Router();
 
@@ -240,6 +242,28 @@ export function environmentRoutes(
       res.status(500).json({ error: "Failed to clear cache" });
     }
   });
+
+  if (deleteEnvironment) {
+    router.delete("/environments/:environmentId", async (req, res) => {
+      try {
+        await deleteEnvironment.execute(req.params.environmentId);
+        audit?.execute({
+          userId: res.locals.userId,
+          action: "environment.deleted",
+          resourceType: "environment",
+          resourceId: req.params.environmentId,
+        });
+        res.status(204).end();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Failed to delete environment";
+        if (message.includes("not found")) {
+          res.status(404).json({ error: message });
+        } else {
+          res.status(500).json({ error: message });
+        }
+      }
+    });
+  }
 
   return router;
 }

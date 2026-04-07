@@ -27,6 +27,8 @@ export function EnvironmentsPage() {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<EnvironmentDTO | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!appId) return;
@@ -104,6 +106,17 @@ export function EnvironmentsPage() {
     }
   }
 
+  async function handleDeleteEnv() {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await api.environments.delete(deleteConfirm.id.value);
+      setEnvironments((prev) => prev.filter((e) => e.id.value !== deleteConfirm.id.value));
+    } catch { /* ignore */ }
+    setDeleting(false);
+    setDeleteConfirm(null);
+  }
+
   return (
     <div className="page">
       <div className="page-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -158,9 +171,16 @@ export function EnvironmentsPage() {
           {environments.map((env) => {
             const keys = envKeys.get(env.id.value) ?? [];
             return (
-              <div key={env.id.value} className="env-card">
+              <div key={env.id.value} className="env-card" style={{ position: "relative" }}>
                 <div className="env-card-name">{env.name}</div>
                 <div className="env-card-key">{env.key}</div>
+                <button
+                  className="btn btn-ghost"
+                  style={{ position: "absolute", top: "0.5rem", right: "0.5rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: "var(--color-danger, #dc3545)" }}
+                  onClick={() => setDeleteConfirm(env)}
+                >
+                  Delete
+                </button>
 
                 <div className="env-card-ttl">
                   <label className="env-card-ttl-label">Cache TTL</label>
@@ -222,6 +242,34 @@ export function EnvironmentsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+          onClick={() => !deleting && setDeleteConfirm(null)}
+        >
+          <div className="card" style={{ maxWidth: "420px", width: "90%", margin: 0 }} onClick={(e) => e.stopPropagation()}>
+            <div className="card-title" style={{ color: "var(--color-danger, #dc3545)" }}>Delete Environment</div>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "0.5rem" }}>
+              Are you sure you want to delete <strong>{deleteConfirm.name}</strong> ({deleteConfirm.key})?
+            </p>
+            <p style={{ fontSize: "0.8125rem", marginBottom: "1rem", color: "var(--color-danger, #dc3545)", fontWeight: 600 }}>
+              This will permanently delete all toggle values, secret values, API keys, and request metrics for this environment.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" disabled={deleting} onClick={() => setDeleteConfirm(null)}>Cancel</button>
+              <button
+                className="btn btn-primary"
+                style={{ background: "var(--color-danger, #dc3545)", borderColor: "var(--color-danger, #dc3545)" }}
+                disabled={deleting}
+                onClick={handleDeleteEnv}
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

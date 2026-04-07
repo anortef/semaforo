@@ -244,22 +244,26 @@ export function TogglesPage() {
                     <React.Fragment key={toggle.id.value}>
                       <tr>
                         <td style={{ paddingLeft: "1.25rem" }}>
-                          <div style={{ fontWeight: 500 }}>{toggle.name}</div>
-                          <span className="badge badge-key">{toggle.key}</span>
-                          <button
-                            className="btn btn-ghost"
-                            style={{ marginLeft: "0.5rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: abActive ? "var(--color-accent)" : "var(--color-text-muted)" }}
-                            onClick={() => toggleAb(toggle.id.value)}
-                          >
-                            A/B Testing
-                          </button>
-                          <button
-                            className="btn btn-ghost"
-                            style={{ marginLeft: "0.25rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: "var(--color-danger, #dc3545)" }}
-                            onClick={() => setDeleteConfirm(toggle)}
-                          >
-                            Delete
-                          </button>
+                          <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+                            <span style={{ fontWeight: 500 }}>{toggle.name}</span>
+                            <span className="badge badge-key">{toggle.key}</span>
+                          </div>
+                          <div style={{ marginTop: "0.25rem" }}>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: abActive ? "var(--color-accent)" : "var(--color-text-muted)" }}
+                              onClick={() => toggleAb(toggle.id.value)}
+                            >
+                              A/B Testing
+                            </button>
+                            <button
+                              className="btn btn-ghost"
+                              style={{ marginLeft: "0.25rem", fontSize: "0.625rem", padding: "0.125rem 0.375rem", color: "var(--color-danger, #dc3545)" }}
+                              onClick={() => setDeleteConfirm(toggle)}
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                         {environments.map((env) => {
                           const stateKey = `${toggle.id.value}:${env.id.value}`;

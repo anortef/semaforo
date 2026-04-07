@@ -54,6 +54,7 @@ import { ListAppMembers } from "../../application/ListAppMembers.js";
 import { CreateSecret } from "../../application/CreateSecret.js";
 import { ListSecrets } from "../../application/ListSecrets.js";
 import { DeleteApp } from "../../application/DeleteApp.js";
+import { DeleteEnvironment } from "../../application/DeleteEnvironment.js";
 import { DeleteFeatureToggle } from "../../application/DeleteFeatureToggle.js";
 import { DeleteSecret } from "../../application/DeleteSecret.js";
 import { SetSecretValue } from "../../application/SetSecretValue.js";
@@ -168,6 +169,7 @@ export function createExpressApp(
     : null;
 
   const deleteAppUseCase = new DeleteApp(appRepository, environmentRepository, cache, resolvedSecretCache);
+  const deleteEnvironmentUseCase = new DeleteEnvironment(environmentRepository, appRepository, cache, resolvedSecretCache);
 
   // Admin use cases
   const adminCreateUser = new AdminCreateUser(userRepository);
@@ -254,7 +256,7 @@ export function createExpressApp(
   app.use(
     "/api",
     auth,
-    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache, recordAudit)
+    environmentRoutes(createEnvironment, listEnvironments, updateEnvironmentUseCase, appRepository, environmentRepository, cache, recordAudit, deleteEnvironmentUseCase)
   );
   app.use("/api", auth, toggleRoutes(createToggle, setToggleValue, listToggles, getPublicToggles, recordAudit, toggleValueRepository, environmentRepository, deleteFeatureToggle));
 

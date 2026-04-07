@@ -293,6 +293,7 @@ docs/           Architecture and domain documentation
 | GET | `/api/apps/:appId/environments` | List environments |
 | POST | `/api/apps/:appId/environments` | Create environment (auto-generates API key) |
 | PATCH | `/api/environments/:envId` | Update environment |
+| DELETE | `/api/environments/:envId` | Delete environment (cascades data) |
 | DELETE | `/api/environments/:envId/cache` | Clear environment cache |
 
 ### Toggles
