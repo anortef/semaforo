@@ -2,6 +2,24 @@
 
 Feature toggle management platform with A/B testing, string values, encrypted secrets, per-app access control, request metrics, and an admin panel.
 
+## Screenshots
+
+| Applications | Feature Toggles |
+|:---:|:---:|
+| ![Applications](docs/screenshots/apps.png) | ![Feature Toggles](docs/screenshots/toggles.png) |
+
+| String Values | Environments |
+|:---:|:---:|
+| ![String Values](docs/screenshots/string-values.png) | ![Environments](docs/screenshots/environments.png) |
+
+| Admin Settings | Audit Log |
+|:---:|:---:|
+| ![Admin Settings](docs/screenshots/admin-settings.png) | ![Audit Log](docs/screenshots/audit-log.png) |
+
+| API Health |
+|:---:|
+| ![API Health](docs/screenshots/admin-health.png) |
+
 ## Quick Start
 
 ```bash
