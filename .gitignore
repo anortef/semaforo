@@ -7,3 +7,10 @@ dist/
 backups/
 coverage/
 apps/web/tsconfig.tsbuildinfo
+
+# Terraform
+terraform/examples/.terraform/
+terraform/examples/.terraform.lock.hcl
+terraform/examples/terraform.tfstate*
+terraform/examples/*.tfvars
+terraform/terraform-provider-semaforo

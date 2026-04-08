@@ -278,9 +278,76 @@ apps/
 packages/
   domain/       Domain entities, repository interfaces, business rules
   shared/       Validation patterns shared between api and web
+  sdk/          @semaforo-flags/sdk — JavaScript/TypeScript client SDK
+terraform/      Terraform provider (Go) for managing resources as IaC
 docker/         Dockerfiles
 docs/           Architecture and domain documentation
+scripts/        Utility scripts (screenshot generation)
 ```
+
+## JavaScript SDK
+
+The `@semaforo-flags/sdk` package provides a TypeScript client for consuming Semaforo's public API from Node.js 18+ or browsers. Zero runtime dependencies.
+
+```bash
+npm install @semaforo-flags/sdk
+```
+
+```typescript
+import { SemaforoClient } from "@semaforo-flags/sdk";
+
+const client = new SemaforoClient({
+  baseUrl: "https://your-instance.com",
+  apiKey: "sk_your_api_key",
+});
+
+const darkMode = await client.getToggle("darkMode");
+const banner = await client.getValue("bannerMessage");
+const secrets = await client.getSecrets();
+
+client.destroy(); // stop polling, clear cache
+```
+
+Features: typed errors, in-memory TTL cache (default 60s), interval-based polling with change detection (default 30s). See [packages/sdk/README.md](packages/sdk/README.md) for full documentation.
+
+## Terraform Provider
+
+A Terraform provider for managing Semaforo resources as infrastructure-as-code. Written in Go using terraform-plugin-framework.
+
+```hcl
+provider "semaforo" {
+  url      = "https://your-instance.com"
+  email    = var.admin_email
+  password = var.admin_password
+}
+
+resource "semaforo_app" "shop" {
+  name = "Shop"
+  key  = "shop"
+}
+
+resource "semaforo_environment" "prod" {
+  app_id            = semaforo_app.shop.id
+  name              = "Production"
+  key               = "prod"
+  cache_ttl_seconds = 600
+}
+
+resource "semaforo_toggle" "dark_mode" {
+  app_id = semaforo_app.shop.id
+  name   = "Dark Mode"
+  key    = "darkMode"
+}
+
+resource "semaforo_toggle_value" "dark_mode_prod" {
+  app_id         = semaforo_app.shop.id
+  toggle_id      = semaforo_toggle.dark_mode.id
+  environment_id = semaforo_environment.prod.id
+  enabled        = true
+}
+```
+
+Resources: `semaforo_app`, `semaforo_environment`, `semaforo_toggle`, `semaforo_toggle_value`, `semaforo_secret`, `semaforo_secret_value`, `semaforo_api_key`. See [terraform/examples/main.tf](terraform/examples/main.tf) for a full example.
 
 ## API Endpoints
 
