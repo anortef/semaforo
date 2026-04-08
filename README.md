@@ -42,7 +42,10 @@ Data is stored in `~/.semaforo/` by default. JWT secret and encryption key are a
 npx semaforo --port 8080                   # custom port
 npx semaforo --data-dir ./my-data          # custom data directory
 npx semaforo -c ./config.json              # custom config file location
+npx semaforo --no-watch                    # disable hot reload (production)
 ```
+
+Hot reload is enabled by default — source changes restart the server automatically. Use `--no-watch` to run the compiled build instead.
 
 ### Docker Mode
 
@@ -70,7 +73,7 @@ This generates a `.env` file with random secrets (if missing) and starts all ser
 | **Storage** | `~/.semaforo/` (configurable) | Docker volumes |
 | **Ports** | Single port (default 3001) | API: 3001, Web: 5173 |
 | **Scaling** | Single instance | Multiple instances possible |
-| **Hot reload** | No (rebuild required) | Yes (source mounted) |
+| **Hot reload** | Yes (via tsx watch, default) | Yes (source mounted) |
 | **Best for** | Local dev, demos, small teams | Production, multi-user |
 
 All features (toggles, string values, secrets, A/B testing, metrics, audit log, backups, admin panel) work in both modes.
@@ -313,7 +316,7 @@ The standalone mode can optionally connect to external PostgreSQL and/or Redis b
 
 Migrations run automatically when connecting to PostgreSQL.
 
-**Note:** Requires building first: `npm run build` (or `npm run build -w packages/domain -w apps/api -w apps/web`).
+**Note:** With `--no-watch`, requires building first: `npm run build`. In default (hot reload) mode, no build step is needed.
 
 ### With Docker (recommended for production)
 
