@@ -236,18 +236,20 @@ Available at `/admin` in the web UI (admin role required).
 ### Standalone Mode (no database required)
 
 ```bash
-npx tsx apps/api/src/standalone.ts
+npx semaforo
 ```
 
 Zero-config startup — all data stored in `~/.semaforo/` as JSON files. Auto-generates JWT secret and encryption key on first run. Serves both API and web UI on port 3001.
 
 Options:
 ```bash
-npx tsx apps/api/src/standalone.ts --port 8080 --data-dir ./my-data
-npx tsx apps/api/src/standalone.ts -c ./my-config.json
+npx semaforo --port 8080 --data-dir ./my-data
+npx semaforo -c ./my-config.json
 ```
 
 The config file (`config.json`) stores `jwtSecret`, `encryptionKey`, `dataDir`, and `port`. CLI flags override config file values. Default config location: `~/.semaforo/config.json`.
+
+**Note:** Requires building first: `npm run build` (or `npm run build -w packages/domain -w apps/api -w apps/web`).
 
 ### With Docker (recommended for production)
 

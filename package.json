@@ -5,6 +5,9 @@
     "packages/*",
     "apps/*"
   ],
+  "bin": {
+    "semaforo": "./bin/semaforo.mjs"
+  },
   "scripts": {
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces --if-present",
