@@ -43,9 +43,14 @@ npx semaforo --port 8080                   # custom port
 npx semaforo --data-dir ./my-data          # custom data directory
 npx semaforo -c ./config.json              # custom config file location
 npx semaforo --no-watch                    # disable hot reload (production)
+npx semaforo -d                            # start as background daemon
+npx semaforo status                        # check if running
+npx semaforo logs                          # tail last 50 lines
+npx semaforo logs -f                       # follow log output
+npx semaforo stop                          # stop the daemon
 ```
 
-Hot reload is enabled by default — source changes restart the server automatically. Use `--no-watch` to run the compiled build instead.
+Hot reload is enabled by default — source changes restart the server automatically. Use `--no-watch` to run the compiled build instead. Daemon mode (`-d`) always runs the compiled build.
 
 ### Docker Mode
 
