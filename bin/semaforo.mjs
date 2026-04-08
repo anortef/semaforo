@@ -106,10 +106,21 @@ if (isLogs) {
 
 // --- Daemon mode ---
 if (isDaemon) {
-  // Daemon always uses --no-watch (compiled JS)
-  if (!fs.existsSync(distFile)) {
-    console.error("Semaforo is not built yet. Run: npm run build");
-    process.exit(1);
+  let bin, binArgs;
+  if (noWatch) {
+    if (!fs.existsSync(distFile)) {
+      console.error("Semaforo is not built yet. Run: npm run build");
+      process.exit(1);
+    }
+    bin = "node";
+    binArgs = [distFile, ...forwardArgs];
+  } else {
+    if (!fs.existsSync(tsxBin)) {
+      console.error("tsx not found. Run: npm install");
+      process.exit(1);
+    }
+    bin = tsxBin;
+    binArgs = ["watch", srcFile, ...forwardArgs];
   }
 
   const existingPid = readPid();
@@ -121,7 +132,7 @@ if (isDaemon) {
   fs.mkdirSync(runtimeDir, { recursive: true });
   const logFd = fs.openSync(logFile, "a");
 
-  const child = spawn("node", [distFile, ...forwardArgs], {
+  const child = spawn(bin, binArgs, {
     detached: true,
     stdio: ["ignore", logFd, logFd],
   });

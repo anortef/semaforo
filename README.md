@@ -50,7 +50,7 @@ npx semaforo logs -f                       # follow log output
 npx semaforo stop                          # stop the daemon
 ```
 
-Hot reload is enabled by default — source changes restart the server automatically. Use `--no-watch` to run the compiled build instead. Daemon mode (`-d`) always runs the compiled build.
+Hot reload is enabled by default in all modes (foreground and daemon) — source changes restart the server automatically. Use `--no-watch` to run the compiled build instead.
 
 ### Docker Mode
 
