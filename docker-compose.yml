@@ -45,6 +45,7 @@ services:
       CORS_ORIGIN: "http://localhost:5173"
       JWT_SECRET: "${JWT_SECRET}"
       ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+      NO_WATCH: "${NO_WATCH:-}"
     volumes:
       - ./packages/domain/src:/app/packages/domain/src
       - ./packages/domain/dist:/app/packages/domain/dist
@@ -56,7 +57,12 @@ services:
       redis:
         condition: service_healthy
     command: >
-      sh -c "npm run db:migrate --workspace=@semaforo/api && npm run dev --workspace=@semaforo/api"
+      sh -c "npm run db:migrate --workspace=@semaforo/api &&
+        if [ -n \"$NO_WATCH\" ]; then
+          npm run build --workspace=@semaforo/api && npm run start --workspace=@semaforo/api;
+        else
+          npm run dev --workspace=@semaforo/api;
+        fi"
 
   web:
     build:

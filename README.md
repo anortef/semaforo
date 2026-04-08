@@ -87,8 +87,9 @@ Configured via `.env` file (created automatically by `start.sh`):
 | `JWT_SECRET` | Secret for signing JWT tokens | Yes |
 | `ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM secret encryption | No (secrets feature disabled without it) |
 | `CORS_ORIGIN` | Allowed CORS origin | Yes (defaults to `http://localhost:5173` in docker-compose) |
+| `NO_WATCH` | Set to any value to disable hot reload (builds and runs compiled JS) | No |
 
-`JWT_SECRET` and `CORS_ORIGIN` are **required** — the API will fail to start without them. `ENCRYPTION_KEY` is optional — if omitted, the secrets feature is simply unavailable.
+`JWT_SECRET` and `CORS_ORIGIN` are **required** — the API will fail to start without them. `ENCRYPTION_KEY` is optional — if omitted, the secrets feature is simply unavailable. Set `NO_WATCH=1` in `.env` to disable hot reload for production deployments.
 
 In standalone mode, these are auto-generated and stored in `config.json` — no `.env` file needed.
 
