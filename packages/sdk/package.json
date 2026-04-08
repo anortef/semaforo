@@ -1,0 +1,36 @@
+{
+  "name": "@semaforo-flags/sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Official JavaScript/TypeScript SDK for the Semaforo feature toggle platform",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "feature-flags",
+    "feature-toggles",
+    "semaforo",
+    "sdk"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^3.0.0"
+  }
+}
