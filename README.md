@@ -22,25 +22,60 @@ Feature toggle management platform with A/B testing, string values, encrypted se
 
 ## Quick Start
 
+Semaforo can run in two modes:
+
+### Standalone Mode
+
+Single-process, no external dependencies. All data stored as JSON files. Best for local development, demos, and small teams.
+
+```bash
+npm install
+npm run build
+npx semaforo
+```
+
+Open http://localhost:3001 — both API and web UI are served from one process. Login with `admin@semaforo.local` / `admin`.
+
+Data is stored in `~/.semaforo/` by default. JWT secret and encryption key are auto-generated on first run. Nothing else to configure.
+
+```bash
+npx semaforo --port 8080                   # custom port
+npx semaforo --data-dir ./my-data          # custom data directory
+npx semaforo -c ./config.json              # custom config file location
+```
+
+### Docker Mode
+
+PostgreSQL + Redis backed. Hot-reloading for development, production-ready for deployment.
+
 ```bash
 ./start.sh
 ```
 
-This generates a `.env` file with random secrets (if missing) and starts all services in detached mode.
+This generates a `.env` file with random secrets (if missing) and starts all services in detached mode. Alternatively: `docker compose up -d`.
 
-Alternatively, start manually:
-
-```bash
-docker compose up -d
-```
-
-Services:
 - **API** at http://localhost:3001
 - **Web UI** at http://localhost:5173
 - **PostgreSQL** at localhost:5432
 - **Redis** at localhost:6379
 
-### Environment Variables
+### Mode Comparison
+
+| | Standalone | Docker |
+|---|---|---|
+| **Setup** | `npm install && npm run build` | `./start.sh` |
+| **Dependencies** | Node.js 20+ only | Docker |
+| **Database** | JSON files on disk | PostgreSQL 16 |
+| **Cache** | In-memory | Redis 7 |
+| **Storage** | `~/.semaforo/` (configurable) | Docker volumes |
+| **Ports** | Single port (default 3001) | API: 3001, Web: 5173 |
+| **Scaling** | Single instance | Multiple instances possible |
+| **Hot reload** | No (rebuild required) | Yes (source mounted) |
+| **Best for** | Local dev, demos, small teams | Production, multi-user |
+
+All features (toggles, string values, secrets, A/B testing, metrics, audit log, backups, admin panel) work in both modes.
+
+### Docker Mode Environment Variables
 
 Configured via `.env` file (created automatically by `start.sh`):
 
@@ -51,6 +86,8 @@ Configured via `.env` file (created automatically by `start.sh`):
 | `CORS_ORIGIN` | Allowed CORS origin | Yes (defaults to `http://localhost:5173` in docker-compose) |
 
 `JWT_SECRET` and `CORS_ORIGIN` are **required** — the API will fail to start without them. `ENCRYPTION_KEY` is optional — if omitted, the secrets feature is simply unavailable.
+
+In standalone mode, these are auto-generated and stored in `config.json` — no `.env` file needed.
 
 ## Default Credentials
 
