@@ -286,6 +286,33 @@ npx semaforo -c ./my-config.json
 
 The config file (`config.json`) stores `jwtSecret`, `encryptionKey`, `dataDir`, and `port`. CLI flags override config file values. Default config location: `~/.semaforo/config.json`.
 
+The standalone mode can optionally connect to external PostgreSQL and/or Redis by adding them to the config file:
+
+```json
+{
+  "jwtSecret": "...",
+  "encryptionKey": "...",
+  "port": 3001,
+  "postgres": {
+    "host": "localhost",
+    "port": 5432,
+    "user": "semaforo",
+    "password": "semaforo",
+    "database": "semaforo"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379
+  }
+}
+```
+
+- **No `postgres`/`redis`** — JSON files + in-memory cache (default)
+- **`postgres` only** — PostgreSQL for storage, in-memory cache
+- **`postgres` + `redis`** — PostgreSQL for storage, Redis for cache (same as Docker mode)
+
+Migrations run automatically when connecting to PostgreSQL.
+
 **Note:** Requires building first: `npm run build` (or `npm run build -w packages/domain -w apps/api -w apps/web`).
 
 ### With Docker (recommended for production)

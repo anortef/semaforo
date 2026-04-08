@@ -34,6 +34,12 @@ import { InMemoryToggleCache } from "./infrastructure/cache/InMemoryToggleCache.
 import { InMemoryRequestCounter } from "./infrastructure/cache/InMemoryRequestCounter.js";
 import { NoOpSecretCache } from "./infrastructure/cache/SecretCache.js";
 
+// Pg + Redis (loaded dynamically only when configured)
+import type { AppRepository, EnvironmentRepository, FeatureToggleRepository, ToggleValueRepository, UserRepository, ApiKeyRepository, AppMemberRepository, SystemSettingRepository, AuditLogRepository, SecretRepository, SecretValueRepository, RequestCountRepository } from "@semaforo/domain";
+import type { ToggleCache, RequestCounter } from "./infrastructure/cache/RedisToggleCache.js";
+import type { SecretCache } from "./infrastructure/cache/SecretCache.js";
+import type { RateLimitConfigCache } from "./infrastructure/http/middleware/rateLimiter.js";
+
 // Use cases
 import { CreateApp } from "./application/CreateApp.js";
 import { ListApps } from "./application/ListApps.js";
@@ -118,6 +124,17 @@ interface StandaloneConfig {
   encryptionKey: string;
   dataDir?: string;
   port?: number;
+  postgres?: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    database: string;
+  };
+  redis?: {
+    host: string;
+    port: number;
+  };
 }
 
 function resolveConfigPath(): string {
@@ -141,16 +158,8 @@ function loadOrCreateConfig(configPath: string): StandaloneConfig {
   return config;
 }
 
-async function main() {
-  const configPath = resolveConfigPath();
-  const config = loadOrCreateConfig(configPath);
-
-  // CLI args override config file values
-  const dataDir = getArg(["data-dir"]) ?? config.dataDir ?? defaultDataDir;
-  const port = parseInt(getArg(["port"]) ?? String(config.port ?? 3001), 10);
+async function createJsonInfra(dataDir: string) {
   const dataPath = path.join(dataDir, "data");
-
-  // --- Initialize stores ---
   const stores = {
     apps: new JsonFileStore<App>(path.join(dataPath, "apps.json"), (a) => a.id.value),
     environments: new JsonFileStore<Environment>(path.join(dataPath, "environments.json"), (e) => e.id.value),
@@ -164,33 +173,29 @@ async function main() {
     secretValues: new JsonFileStore<SecretValue>(path.join(dataPath, "secret-values.json"), (v) => v.id.value),
     requestCounts: new JsonFileStore<RequestCount>(path.join(dataPath, "request-counts.json"), (r) => r.id.value),
   };
-
   await Promise.all(Object.values(stores).map((s) => s.load()));
 
-  // --- Cascade helper & repositories ---
   const cascade = new CascadeHelper(stores);
-  const appRepository = new JsonAppRepository(stores.apps, cascade);
-  const environmentRepository = new JsonEnvironmentRepository(stores.environments, cascade);
-  const toggleRepository = new JsonFeatureToggleRepository(stores.toggles, cascade);
-  const toggleValueRepository = new JsonToggleValueRepository(stores.toggleValues);
-  const userRepository = new JsonUserRepository(stores.users);
-  const apiKeyRepository = new JsonApiKeyRepository(stores.apiKeys);
-  const appMemberRepository = new JsonAppMemberRepository(stores.members);
-  const systemSettingRepository = new JsonSystemSettingRepository(stores.settings);
-  const auditLogRepository = new JsonAuditLogRepository(path.join(dataDir, "audit.jsonl"));
-  const secretRepository = new JsonSecretRepository(stores.secrets, cascade);
-  const secretValueRepository = new JsonSecretValueRepository(stores.secretValues);
-  const requestCountRepository = new JsonRequestCountRepository(stores.requestCounts);
+  const appRepository: AppRepository = new JsonAppRepository(stores.apps, cascade);
+  const environmentRepository: EnvironmentRepository = new JsonEnvironmentRepository(stores.environments, cascade);
+  const toggleRepository: FeatureToggleRepository = new JsonFeatureToggleRepository(stores.toggles, cascade);
+  const toggleValueRepository: ToggleValueRepository = new JsonToggleValueRepository(stores.toggleValues);
+  const userRepository: UserRepository = new JsonUserRepository(stores.users);
+  const apiKeyRepository: ApiKeyRepository = new JsonApiKeyRepository(stores.apiKeys);
+  const appMemberRepository: AppMemberRepository = new JsonAppMemberRepository(stores.members);
+  const systemSettingRepository: SystemSettingRepository = new JsonSystemSettingRepository(stores.settings);
+  const auditLogRepository: AuditLogRepository & { clear(): Promise<void> } = new JsonAuditLogRepository(path.join(dataDir, "audit.jsonl"));
+  const secretRepository: SecretRepository = new JsonSecretRepository(stores.secrets, cascade);
+  const secretValueRepository: SecretValueRepository = new JsonSecretValueRepository(stores.secretValues);
+  const requestCountRepository: RequestCountRepository = new JsonRequestCountRepository(stores.requestCounts);
 
-  // --- Caches ---
-  const cache = new InMemoryToggleCache();
-  const secretCache = new NoOpSecretCache();
-  const requestCounter = new InMemoryRequestCounter();
-  const rateLimitCache = { get: async () => null, set: async () => {}, invalidate: async () => {} };
-  const rateLimitReader = createRateLimitConfigReader(rateLimitCache, systemSettingRepository);
+  const cache: ToggleCache = new InMemoryToggleCache();
+  const secretCacheImpl: SecretCache = new NoOpSecretCache();
+  const requestCounter: RequestCounter = new InMemoryRequestCounter();
+  const rateLimitCacheImpl: RateLimitConfigCache = { get: async () => null, set: async () => {} };
 
-  // --- Pool stub for adminRoutes ---
-  const poolStub = {
+  // Pool stub for adminRoutes raw SQL
+  const pool = {
     query: async (sql: string) => {
       if (sql === "SELECT 1") return { rows: [{}] };
       if (sql.includes("FROM users")) return { rows: [{ count: await userRepository.countAll() }] };
@@ -210,6 +215,128 @@ async function main() {
       throw new Error(`Unsupported SQL in standalone mode: ${sql}`);
     },
   };
+
+  console.log("Storage: JSON files");
+  console.log("Cache: in-memory");
+
+  return {
+    appRepository, environmentRepository, toggleRepository, toggleValueRepository,
+    userRepository, apiKeyRepository, appMemberRepository, systemSettingRepository,
+    auditLogRepository, secretRepository, secretValueRepository, requestCountRepository,
+    cache, secretCache: secretCacheImpl, requestCounter, rateLimitCache: rateLimitCacheImpl, pool,
+  };
+}
+
+async function createPgRedisInfra(config: StandaloneConfig) {
+  const pgModule = await import("pg");
+  const PgPool = pgModule.default?.Pool ?? (pgModule as any).Pool;
+  const pool = new PgPool({
+    host: config.postgres!.host,
+    port: config.postgres!.port,
+    user: config.postgres!.user,
+    password: config.postgres!.password,
+    database: config.postgres!.database,
+  });
+
+  // Run migrations inline
+  await pool.query(`CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT false`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS apps (id TEXT PRIMARY KEY, name TEXT NOT NULL, key TEXT UNIQUE NOT NULL, description TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS environments (id TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, name TEXT NOT NULL, key TEXT NOT NULL, cache_ttl_seconds INT NOT NULL DEFAULT 300, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(app_id, key))`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS feature_toggles (id TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, name TEXT NOT NULL, key TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT 'boolean', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(app_id, key))`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS toggle_values (id TEXT PRIMARY KEY, toggle_id TEXT NOT NULL REFERENCES feature_toggles(id) ON DELETE CASCADE, environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE, enabled BOOLEAN NOT NULL DEFAULT false, string_value TEXT NOT NULL DEFAULT '', rollout_percentage INT NOT NULL DEFAULT 100, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(toggle_id, environment_id))`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS api_keys (id TEXT PRIMARY KEY, environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE, name TEXT NOT NULL DEFAULT '', key TEXT UNIQUE NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS system_settings (id TEXT PRIMARY KEY, key TEXT UNIQUE NOT NULL, value TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS audit_log (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, action TEXT NOT NULL, resource_type TEXT NOT NULL, resource_id TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at DESC)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS app_members (id TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, role TEXT NOT NULL DEFAULT 'viewer', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(app_id, user_id))`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS request_counts (id TEXT PRIMARY KEY, environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE, count INT NOT NULL DEFAULT 0, window_start TIMESTAMPTZ NOT NULL, window_end TIMESTAMPTZ NOT NULL)`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS secrets (id TEXT PRIMARY KEY, app_id TEXT NOT NULL REFERENCES apps(id) ON DELETE CASCADE, key TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(app_id, key))`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS secret_values (id TEXT PRIMARY KEY, secret_id TEXT NOT NULL REFERENCES secrets(id) ON DELETE CASCADE, environment_id TEXT NOT NULL REFERENCES environments(id) ON DELETE CASCADE, encrypted_value TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(secret_id, environment_id))`);
+  console.log("Migrations complete");
+
+  const { PgAppRepository } = await import("./infrastructure/persistence/PgAppRepository.js");
+  const { PgEnvironmentRepository } = await import("./infrastructure/persistence/PgEnvironmentRepository.js");
+  const { PgFeatureToggleRepository } = await import("./infrastructure/persistence/PgFeatureToggleRepository.js");
+  const { PgToggleValueRepository } = await import("./infrastructure/persistence/PgToggleValueRepository.js");
+  const { PgUserRepository } = await import("./infrastructure/persistence/PgUserRepository.js");
+  const { PgApiKeyRepository } = await import("./infrastructure/persistence/PgApiKeyRepository.js");
+  const { PgAppMemberRepository } = await import("./infrastructure/persistence/PgAppMemberRepository.js");
+  const { PgSystemSettingRepository } = await import("./infrastructure/persistence/PgSystemSettingRepository.js");
+  const { PgAuditLogRepository } = await import("./infrastructure/persistence/PgAuditLogRepository.js");
+  const { PgSecretRepository } = await import("./infrastructure/persistence/PgSecretRepository.js");
+  const { PgSecretValueRepository } = await import("./infrastructure/persistence/PgSecretValueRepository.js");
+  const { PgRequestCountRepository } = await import("./infrastructure/persistence/PgRequestCountRepository.js");
+
+  const appRepository: AppRepository = new PgAppRepository(pool);
+  const environmentRepository: EnvironmentRepository = new PgEnvironmentRepository(pool);
+  const toggleRepository: FeatureToggleRepository = new PgFeatureToggleRepository(pool);
+  const toggleValueRepository: ToggleValueRepository = new PgToggleValueRepository(pool);
+  const userRepository: UserRepository = new PgUserRepository(pool);
+  const apiKeyRepository: ApiKeyRepository = new PgApiKeyRepository(pool);
+  const appMemberRepository: AppMemberRepository = new PgAppMemberRepository(pool);
+  const systemSettingRepository: SystemSettingRepository = new PgSystemSettingRepository(pool);
+  const auditLogRepository: AuditLogRepository = new PgAuditLogRepository(pool);
+  const secretRepository: SecretRepository = new PgSecretRepository(pool);
+  const secretValueRepository: SecretValueRepository = new PgSecretValueRepository(pool);
+  const requestCountRepository: RequestCountRepository = new PgRequestCountRepository(pool);
+
+  let cache: ToggleCache;
+  let secretCacheImpl: SecretCache;
+  let requestCounter: RequestCounter;
+  let rateLimitCacheImpl: RateLimitConfigCache;
+
+  if (config.redis) {
+    const ioredisModule = await import("ioredis");
+    const RedisClient = (ioredisModule as any).default ?? ioredisModule;
+    const redis = new RedisClient({ host: config.redis.host, port: config.redis.port }) as any;
+    const { RedisToggleCache, RedisRequestCounter, RedisRateLimitConfigCache } = await import("./infrastructure/cache/RedisToggleCache.js");
+    const { RedisSecretCache } = await import("./infrastructure/cache/SecretCache.js");
+    cache = new RedisToggleCache(redis as any);
+    secretCacheImpl = new RedisSecretCache(redis as any);
+    requestCounter = new RedisRequestCounter(redis as any);
+    rateLimitCacheImpl = new RedisRateLimitConfigCache(redis as any);
+    console.log(`Cache: Redis (${config.redis.host}:${config.redis.port})`);
+  } else {
+    cache = new InMemoryToggleCache();
+    secretCacheImpl = new NoOpSecretCache();
+    requestCounter = new InMemoryRequestCounter();
+    rateLimitCacheImpl = { get: async () => null, set: async () => {} };
+    console.log("Cache: in-memory");
+  }
+
+  console.log(`Storage: PostgreSQL (${config.postgres!.host}:${config.postgres!.port}/${config.postgres!.database})`);
+
+  return {
+    appRepository, environmentRepository, toggleRepository, toggleValueRepository,
+    userRepository, apiKeyRepository, appMemberRepository, systemSettingRepository,
+    auditLogRepository, secretRepository, secretValueRepository, requestCountRepository,
+    cache, secretCache: secretCacheImpl, requestCounter, rateLimitCache: rateLimitCacheImpl, pool,
+  };
+}
+
+async function main() {
+  const configPath = resolveConfigPath();
+  const config = loadOrCreateConfig(configPath);
+
+  // CLI args override config file values
+  const dataDir = getArg(["data-dir"]) ?? config.dataDir ?? defaultDataDir;
+  const port = parseInt(getArg(["port"]) ?? String(config.port ?? 3001), 10);
+
+  const infra = config.postgres
+    ? await createPgRedisInfra(config)
+    : await createJsonInfra(dataDir);
+
+  const {
+    appRepository, environmentRepository, toggleRepository, toggleValueRepository,
+    userRepository, apiKeyRepository, appMemberRepository, systemSettingRepository,
+    auditLogRepository, secretRepository, secretValueRepository, requestCountRepository,
+    cache, secretCache, requestCounter, rateLimitCache, pool,
+  } = infra;
+
+  const rateLimitReader = createRateLimitConfigReader(rateLimitCache as any, systemSettingRepository as any);
 
   // --- Use cases ---
   const createAppUseCase = new CreateApp(appRepository);
@@ -282,7 +409,7 @@ async function main() {
     deleteUser: adminDeleteUser, resetPassword: adminResetPassword,
     listSettings: adminListSettings, updateSetting: adminUpdateSetting,
     listAuditLog: adminListAuditLog, recordAudit,
-    pool: poolStub as any,
+    pool: pool as any,
     userRepository, appRepository, environmentRepository, toggleRepository, secretRepository,
     exportAll, importAll, scheduledBackup,
     onSettingChanged: async (key: string) => {
