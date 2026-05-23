@@ -10,7 +10,7 @@
     "src/**/*.ts",
     "!src/**/*.test.ts",
     "!src/index.ts",
-    "!src/test/**"
+    "!src/types.ts"
   ],
   "coverageAnalysis": "perTest",
   "ignoreStatic": true,
