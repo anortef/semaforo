@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { createToggleValue, updateToggleValue } from "../ToggleValue.js";
 
 const validTvParams = {
@@ -127,5 +128,75 @@ describe("updateToggleValue", () => {
     const before = Date.now();
     const updated = updateToggleValue(original, { enabled: false });
     expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe("ToggleValue properties", () => {
+  it("clamps rolloutPercentage into the [0, 100] range for any number", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: -10000, max: 10000 }), (n) => {
+        const value = createToggleValue({ ...validTvParams, rolloutPercentage: n });
+        return value.rolloutPercentage >= 0 && value.rolloutPercentage <= 100;
+      }),
+    );
+  });
+
+  it("treats any in-range percentage as the identity (no clamping)", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 100 }), (n) => {
+        const value = createToggleValue({ ...validTvParams, rolloutPercentage: n });
+        return value.rolloutPercentage === n;
+      }),
+    );
+  });
+
+  it("clamp is idempotent: clamp(clamp(n)) === clamp(n)", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: -10000, max: 10000 }), (n) => {
+        const once = createToggleValue({ ...validTvParams, rolloutPercentage: n }).rolloutPercentage;
+        const twice = createToggleValue({ ...validTvParams, rolloutPercentage: once }).rolloutPercentage;
+        return once === twice;
+      }),
+    );
+  });
+
+  it("update of `enabled` preserves the existing stringValue", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.boolean(), (s, e) => {
+        const base = createToggleValue({ ...validTvParams, stringValue: s, enabled: !e });
+        const updated = updateToggleValue(base, { enabled: e });
+        return updated.stringValue === s;
+      }),
+    );
+  });
+
+  it("update of `enabled` preserves the existing rolloutPercentage", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 0, max: 100 }), fc.boolean(), (p, e) => {
+        const base = createToggleValue({ ...validTvParams, rolloutPercentage: p, enabled: !e });
+        const updated = updateToggleValue(base, { enabled: e });
+        return updated.rolloutPercentage === p;
+      }),
+    );
+  });
+
+  it("update of `stringValue` preserves the existing enabled flag", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.boolean(), (newStr, e) => {
+        const base = createToggleValue({ ...validTvParams, enabled: e });
+        const updated = updateToggleValue(base, { stringValue: newStr });
+        return updated.enabled === e;
+      }),
+    );
+  });
+
+  it("update of `rolloutPercentage` clamps into [0, 100] for any number", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: -10000, max: 10000 }), (n) => {
+        const base = createToggleValue(validTvParams);
+        const updated = updateToggleValue(base, { rolloutPercentage: n });
+        return updated.rolloutPercentage >= 0 && updated.rolloutPercentage <= 100;
+      }),
+    );
   });
 });

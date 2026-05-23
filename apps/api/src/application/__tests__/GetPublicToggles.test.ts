@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import fc from "fast-check";
 import { GetPublicToggles } from "../GetPublicToggles.js";
 import { NoOpToggleCache } from "../../infrastructure/cache/RedisToggleCache.js";
 import type {
@@ -192,5 +193,86 @@ describe("GetPublicToggles", () => {
     const result = await useCase.execute({ appKey: "my-app", envKey: "prod", toggleKey: "nonExistent" });
 
     expect(result).toEqual({ nonExistent: false });
+  });
+});
+
+describe("GetPublicToggles properties", () => {
+  const freshSetup = (options?: { toggleEnabled?: boolean; rolloutPercentage?: number }) => {
+    const appRepo = new InMemoryAppRepository();
+    const envRepo = new InMemoryEnvironmentRepository();
+    const toggleRepo = new InMemoryToggleRepository();
+    const valueRepo = new InMemoryToggleValueRepository();
+    const useCase = new GetPublicToggles(appRepo, envRepo, toggleRepo, valueRepo, new NoOpToggleCache());
+    appRepo.apps.push({
+      id: { value: "app-1" }, name: "App", key: "my-app", description: "", createdAt: new Date(),
+    });
+    envRepo.envs.push({
+      id: { value: "env-1" }, appId: "app-1", name: "Prod", key: "prod", cacheTtlSeconds: 300, createdAt: new Date(),
+    });
+    toggleRepo.toggles.push({
+      id: { value: "t-1" }, appId: "app-1", name: "Feature", key: "feature",
+      description: "", type: "boolean", createdAt: new Date(),
+    });
+    if (options) {
+      valueRepo.values.push({
+        id: { value: "v-1" }, toggleId: "t-1", environmentId: "env-1",
+        enabled: options.toggleEnabled ?? true, stringValue: "",
+        rolloutPercentage: options.rolloutPercentage ?? 100,
+        updatedAt: new Date(),
+      });
+    }
+    return { useCase };
+  };
+
+  it("is deterministic with a non-empty userId across repeated calls", () => {
+    return fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 1, max: 99 }),
+        fc.string({ minLength: 1, maxLength: 32 }),
+        async (rolloutPercentage, userId) => {
+          const { useCase } = freshSetup({ toggleEnabled: true, rolloutPercentage });
+          const a = await useCase.execute({ appKey: "my-app", envKey: "prod", userId });
+          const b = await useCase.execute({ appKey: "my-app", envKey: "prod", userId });
+          return a.feature === b.feature;
+        },
+      ),
+    );
+  });
+
+  it("returns false for any unknown toggle key", () => {
+    return fc.assert(
+      fc.asyncProperty(
+        fc.string({ minLength: 1, maxLength: 32 }).filter((s) => s !== "feature"),
+        async (toggleKey) => {
+          const { useCase } = freshSetup();
+          const result = await useCase.execute({ appKey: "my-app", envKey: "prod", toggleKey });
+          return result[toggleKey] === false;
+        },
+      ),
+    );
+  });
+
+  it("set-then-get round trip at 100% rollout returns the stored enabled flag", () => {
+    return fc.assert(
+      fc.asyncProperty(fc.boolean(), async (enabled) => {
+        const { useCase } = freshSetup({ toggleEnabled: enabled, rolloutPercentage: 100 });
+        const result = await useCase.execute({ appKey: "my-app", envKey: "prod" });
+        return result.feature === enabled;
+      }),
+    );
+  });
+
+  it("a disabled toggle always evaluates to false regardless of rollout percentage", () => {
+    return fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 0, max: 100 }),
+        fc.string({ minLength: 1, maxLength: 32 }),
+        async (rolloutPercentage, userId) => {
+          const { useCase } = freshSetup({ toggleEnabled: false, rolloutPercentage });
+          const result = await useCase.execute({ appKey: "my-app", envKey: "prod", userId });
+          return result.feature === false;
+        },
+      ),
+    );
   });
 });

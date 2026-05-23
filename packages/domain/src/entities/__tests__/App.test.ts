@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { createApp } from "../App.js";
+import {
+  invalidLowerHyphenKey,
+  lowerHyphenKey,
+  nonEmptyName,
+} from "../../test/arbitraries.js";
 
 const validAppParams = {
   id: "app-1",
@@ -83,5 +89,49 @@ describe("createApp", () => {
   it("accepts a two-character lowercase key", () => {
     const app = createApp({ ...validAppParams, key: "ab" });
     expect(app.key).toBe("ab");
+  });
+});
+
+describe("App properties", () => {
+  it("preserves the id verbatim: app.id.value === params.id for any id", () => {
+    fc.assert(
+      fc.property(fc.string(), (id) => {
+        const app = createApp({ ...validAppParams, id });
+        return app.id.value === id;
+      }),
+    );
+  });
+
+  it("stores the name trimmed regardless of surrounding whitespace", () => {
+    fc.assert(
+      fc.property(nonEmptyName(), fc.nat({ max: 5 }), fc.nat({ max: 5 }), (name, lead, trail) => {
+        const padded = " ".repeat(lead) + name + " ".repeat(trail);
+        const app = createApp({ ...validAppParams, name: padded });
+        return app.name === name.trim();
+      }),
+    );
+  });
+
+  it("accepts any key that matches the lowercase-hyphen pattern", () => {
+    fc.assert(
+      fc.property(lowerHyphenKey(), (key) => {
+        const app = createApp({ ...validAppParams, key });
+        return app.key === key;
+      }),
+    );
+  });
+
+  it("rejects any key that does not match the pattern", () => {
+    fc.assert(
+      fc.property(invalidLowerHyphenKey(), (key) => {
+        let threw = false;
+        try {
+          createApp({ ...validAppParams, key });
+        } catch {
+          threw = true;
+        }
+        return threw;
+      }),
+    );
   });
 });

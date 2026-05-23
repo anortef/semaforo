@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { evaluateRollout } from "../RolloutEvaluator.js";
+import { percentage } from "../../test/arbitraries.js";
 
 describe("evaluateRollout", () => {
   it("returns true when percentage is exactly 100", () => {
@@ -97,5 +99,72 @@ describe("evaluateRollout", () => {
   it("treats bucket equal to percentage as outside the rollout (strict <)", () => {
     // ("feature-x", "user-1") hashes to bucket 5 — at exactly 5% rollout, 5 < 5 is false.
     expect(evaluateRollout(5, "feature-x", "user-1")).toBe(false);
+  });
+});
+
+describe("evaluateRollout properties", () => {
+  it("is deterministic for any (percentage, toggleKey, userId) — including empty-string userId", () => {
+    fc.assert(
+      fc.property(percentage(), fc.string(), fc.string(), (p, k, u) => {
+        return evaluateRollout(p, k, u) === evaluateRollout(p, k, u);
+      }),
+    );
+  });
+
+  it("always returns true at 100% rollout", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (k, u) => {
+        return evaluateRollout(100, k, u) === true;
+      }),
+    );
+  });
+
+  it("always returns false at 0% rollout", () => {
+    fc.assert(
+      fc.property(fc.string(), fc.string(), (k, u) => {
+        return evaluateRollout(0, k, u) === false;
+      }),
+    );
+  });
+
+  it("always returns a boolean for any percentage with a userId", () => {
+    fc.assert(
+      fc.property(percentage(), fc.string(), fc.string(), (p, k, u) => {
+        return typeof evaluateRollout(p, k, u) === "boolean";
+      }),
+    );
+  });
+
+  it("is monotonic in percentage: included at p1 implies included at any p2 >= p1", () => {
+    fc.assert(
+      fc.property(
+        percentage(),
+        percentage(),
+        fc.string(),
+        fc.string(),
+        (p1, p2, k, u) => {
+          const low = Math.min(p1, p2);
+          const high = Math.max(p1, p2);
+          const inAtLow = evaluateRollout(low, k, u);
+          const inAtHigh = evaluateRollout(high, k, u);
+          // If included at the lower percentage, must remain included at the higher one.
+          return !inAtLow || inAtHigh;
+        },
+      ),
+    );
+  });
+
+  it("yields a true-count within ±10% of the configured percentage over 1000 distinct users", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 20, max: 80 }), fc.string({ minLength: 1, maxLength: 20 }), (p, key) => {
+        let trueCount = 0;
+        for (let i = 0; i < 1000; i++) {
+          if (evaluateRollout(p, key, `user-${i}`)) trueCount++;
+        }
+        const rate = trueCount / 10; // 0-100
+        return Math.abs(rate - p) <= 10;
+      }),
+      { numRuns: 10 },
+    );
   });
 });

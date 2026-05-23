@@ -9,7 +9,8 @@
   "mutate": [
     "src/**/*.ts",
     "!src/**/*.test.ts",
-    "!src/index.ts"
+    "!src/index.ts",
+    "!src/test/**"
   ],
   "coverageAnalysis": "perTest",
   "thresholds": {

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { createUser, updateUser } from "../User.js";
+import { nonEmptyName } from "../../test/arbitraries.js";
 
 const validUserParams = {
   id: "user-1",
@@ -148,5 +150,76 @@ describe("updateUser", () => {
     const before = Date.now();
     const updated = updateUser(base, { name: "New" });
     expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe("User properties", () => {
+  it("preserves the id verbatim: user.id.value === params.id for any id", () => {
+    fc.assert(
+      fc.property(fc.string(), (id) => {
+        const user = createUser({ ...validUserParams, id });
+        return user.id.value === id;
+      }),
+    );
+  });
+
+  it("stores the name trimmed regardless of surrounding whitespace", () => {
+    fc.assert(
+      fc.property(nonEmptyName(), fc.nat({ max: 5 }), fc.nat({ max: 5 }), (name, lead, trail) => {
+        const padded = " ".repeat(lead) + name + " ".repeat(trail);
+        const user = createUser({ ...validUserParams, name: padded });
+        return user.name === name.trim();
+      }),
+    );
+  });
+
+  it("lowercases the email regardless of input casing", () => {
+    fc.assert(
+      fc.property(fc.stringMatching(/^[a-zA-Z]{1,10}$/), fc.stringMatching(/^[a-zA-Z]{1,10}$/), (local, domain) => {
+        const email = `${local}@${domain}.com`;
+        const user = createUser({ ...validUserParams, email });
+        return user.email === email.toLowerCase();
+      }),
+    );
+  });
+
+  it("only accepts the two declared roles", () => {
+    fc.assert(
+      fc.property(fc.constantFrom("admin", "user"), (role) => {
+        const user = createUser({ ...validUserParams, role });
+        return user.role === role;
+      }),
+    );
+  });
+
+  it("rejects any role outside the declared set", () => {
+    fc.assert(
+      fc.property(
+        fc.string().filter((s) => s !== "admin" && s !== "user"),
+        (role) => {
+          let threw = false;
+          try {
+            createUser({ ...validUserParams, role: role as "admin" });
+          } catch {
+            threw = true;
+          }
+          return threw;
+        },
+      ),
+    );
+  });
+
+  it("rejects whitespace-only names of any length", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 20 }), (len) => {
+        let threw = false;
+        try {
+          createUser({ ...validUserParams, name: " ".repeat(len) });
+        } catch {
+          threw = true;
+        }
+        return threw;
+      }),
+    );
   });
 });

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { createEnvironment, updateEnvironment } from "../Environment.js";
+import {
+  cacheTtl,
+  invalidLowerHyphenKey,
+  lowerHyphenKey,
+  nonEmptyName,
+} from "../../test/arbitraries.js";
 
 const validEnvParams = {
   id: "env-1",
@@ -173,5 +180,95 @@ describe("updateEnvironment", () => {
   it("returns base unchanged when no updates are passed", () => {
     const updated = updateEnvironment(base, {});
     expect(updated.name).toBe(base.name);
+  });
+});
+
+describe("Environment properties", () => {
+  it("preserves the id verbatim: env.id.value === params.id for any id", () => {
+    fc.assert(
+      fc.property(fc.string(), (id) => {
+        const env = createEnvironment({ ...validEnvParams, id });
+        return env.id.value === id;
+      }),
+    );
+  });
+
+  it("stores the name trimmed regardless of surrounding whitespace", () => {
+    fc.assert(
+      fc.property(nonEmptyName(), fc.nat({ max: 5 }), fc.nat({ max: 5 }), (name, lead, trail) => {
+        const padded = " ".repeat(lead) + name + " ".repeat(trail);
+        const env = createEnvironment({ ...validEnvParams, name: padded });
+        return env.name === name.trim();
+      }),
+    );
+  });
+
+  it("accepts any key that matches the lowercase-hyphen pattern", () => {
+    fc.assert(
+      fc.property(lowerHyphenKey(), (key) => {
+        const env = createEnvironment({ ...validEnvParams, key });
+        return env.key === key;
+      }),
+    );
+  });
+
+  it("rejects any key that does not match the pattern", () => {
+    fc.assert(
+      fc.property(invalidLowerHyphenKey(), (key) => {
+        let threw = false;
+        try {
+          createEnvironment({ ...validEnvParams, key });
+        } catch {
+          threw = true;
+        }
+        return threw;
+      }),
+    );
+  });
+
+  it("accepts any cacheTtlSeconds inside [0, 86400]", () => {
+    fc.assert(
+      fc.property(cacheTtl(), (ttl) => {
+        const env = createEnvironment({ ...validEnvParams, cacheTtlSeconds: ttl });
+        return env.cacheTtlSeconds === ttl;
+      }),
+    );
+  });
+
+  it("rejects any cacheTtlSeconds outside [0, 86400]", () => {
+    fc.assert(
+      fc.property(
+        fc.integer().filter((n) => n < 0 || n > 86400),
+        (ttl) => {
+          let threw = false;
+          try {
+            createEnvironment({ ...validEnvParams, cacheTtlSeconds: ttl });
+          } catch {
+            threw = true;
+          }
+          return threw;
+        },
+      ),
+    );
+  });
+
+  it("update preserves the cacheTtlSeconds when only name changes", () => {
+    fc.assert(
+      fc.property(cacheTtl(), nonEmptyName(), (ttl, newName) => {
+        const env = createEnvironment({ ...validEnvParams, cacheTtlSeconds: ttl });
+        const updated = updateEnvironment(env, { name: newName });
+        return updated.cacheTtlSeconds === ttl;
+      }),
+    );
+  });
+
+  it("update preserves the name when only cacheTtlSeconds changes", () => {
+    fc.assert(
+      fc.property(cacheTtl(), nonEmptyName(), (ttl, name) => {
+        const env = createEnvironment({ ...validEnvParams, name });
+        const updated = updateEnvironment(env, { cacheTtlSeconds: ttl });
+        return updated.name === name.trim();
+      }),
+    );
   });
 });

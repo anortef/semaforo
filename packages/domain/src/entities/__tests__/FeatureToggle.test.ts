@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { createFeatureToggle } from "../FeatureToggle.js";
+import {
+  camelCaseKey,
+  invalidCamelCaseKey,
+  nonEmptyName,
+} from "../../test/arbitraries.js";
 
 const validToggleParams = {
   id: "toggle-1",
@@ -97,5 +103,84 @@ describe("createFeatureToggle", () => {
   it("sets createdAt to a Date instance", () => {
     const toggle = createFeatureToggle(validToggleParams);
     expect(toggle.createdAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("FeatureToggle properties", () => {
+  it("preserves the id verbatim: toggle.id.value === params.id for any id", () => {
+    fc.assert(
+      fc.property(fc.string(), (id) => {
+        const toggle = createFeatureToggle({ ...validToggleParams, id });
+        return toggle.id.value === id;
+      }),
+    );
+  });
+
+  it("stores the name trimmed regardless of surrounding whitespace", () => {
+    fc.assert(
+      fc.property(nonEmptyName(), fc.nat({ max: 5 }), fc.nat({ max: 5 }), (name, lead, trail) => {
+        const padded = " ".repeat(lead) + name + " ".repeat(trail);
+        const toggle = createFeatureToggle({ ...validToggleParams, name: padded });
+        return toggle.name === name.trim();
+      }),
+    );
+  });
+
+  it("accepts any key that matches the camelCase pattern", () => {
+    fc.assert(
+      fc.property(camelCaseKey(), (key) => {
+        const toggle = createFeatureToggle({ ...validToggleParams, key });
+        return toggle.key === key;
+      }),
+    );
+  });
+
+  it("rejects any key that does not match the camelCase pattern", () => {
+    fc.assert(
+      fc.property(invalidCamelCaseKey(), (key) => {
+        let threw = false;
+        try {
+          createFeatureToggle({ ...validToggleParams, key });
+        } catch {
+          threw = true;
+        }
+        return threw;
+      }),
+    );
+  });
+
+  it("only accepts the two declared types", () => {
+    fc.assert(
+      fc.property(fc.constantFrom("boolean", "string"), (type) => {
+        const toggle = createFeatureToggle({ ...validToggleParams, type });
+        return toggle.type === type;
+      }),
+    );
+  });
+
+  it("rejects any type outside the declared set", () => {
+    fc.assert(
+      fc.property(
+        fc.string().filter((s) => s !== "boolean" && s !== "string"),
+        (type) => {
+          let threw = false;
+          try {
+            createFeatureToggle({ ...validToggleParams, type: type as "boolean" });
+          } catch {
+            threw = true;
+          }
+          return threw;
+        },
+      ),
+    );
+  });
+
+  it("preserves the description verbatim for any string", () => {
+    fc.assert(
+      fc.property(fc.string(), (description) => {
+        const toggle = createFeatureToggle({ ...validToggleParams, description });
+        return toggle.description === description;
+      }),
+    );
   });
 });

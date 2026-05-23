@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
+import fc from "fast-check";
 import { createAuditLogEntry } from "../AuditLogEntry.js";
+import { nonEmptyName } from "../../test/arbitraries.js";
 
 const validEntryParams = {
   id: "a-1",
@@ -62,5 +64,48 @@ describe("createAuditLogEntry", () => {
   it("sets createdAt to a Date instance", () => {
     const entry = createAuditLogEntry(validEntryParams);
     expect(entry.createdAt).toBeInstanceOf(Date);
+  });
+});
+
+describe("AuditLogEntry properties", () => {
+  it("preserves the id verbatim: entry.id.value === params.id for any id", () => {
+    fc.assert(
+      fc.property(fc.string(), (id) => {
+        const entry = createAuditLogEntry({ ...validEntryParams, id });
+        return entry.id.value === id;
+      }),
+    );
+  });
+
+  it("stores the action verbatim (no trim) for any non-empty action", () => {
+    fc.assert(
+      fc.property(nonEmptyName(), (action) => {
+        const entry = createAuditLogEntry({ ...validEntryParams, action });
+        return entry.action === action;
+      }),
+    );
+  });
+
+  it("preserves details verbatim for any string", () => {
+    fc.assert(
+      fc.property(fc.string(), (details) => {
+        const entry = createAuditLogEntry({ ...validEntryParams, details });
+        return entry.details === details;
+      }),
+    );
+  });
+
+  it("rejects whitespace-only actions of any length", () => {
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 20 }), (len) => {
+        let threw = false;
+        try {
+          createAuditLogEntry({ ...validEntryParams, action: " ".repeat(len) });
+        } catch {
+          threw = true;
+        }
+        return threw;
+      }),
+    );
   });
 });
