@@ -1,0 +1,32 @@
+name: Mutation Testing
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mutation:
+    name: Domain Mutation Testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build domain package
+        run: npm run build -w packages/domain
+
+      - name: Run mutation tests
+        run: npm run test:mutation -w packages/domain
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: packages/domain/reports/mutation/

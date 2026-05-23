@@ -7,6 +7,8 @@ dist/
 backups/
 coverage/
 apps/web/tsconfig.tsbuildinfo
+.stryker-tmp/
+reports/
 
 # Terraform
 terraform/examples/.terraform/

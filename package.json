@@ -13,6 +13,7 @@
     "test": "npm run test --workspaces --if-present",
     "test:unit": "npm run test:unit --workspaces --if-present",
     "test:integration": "npm run test:integration --workspaces --if-present",
+    "test:mutation": "npm run test:mutation -w packages/domain",
     "lint": "npm run lint --workspaces --if-present"
   },
   "devDependencies": {
