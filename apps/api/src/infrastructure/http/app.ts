@@ -187,7 +187,7 @@ export function createExpressApp(
 
   // Middleware
   const auth = createAuthMiddleware(config.jwt.secret, securityLogger);
-  const adminAuth = createAdminMiddleware(securityLogger);
+  const adminAuth = createAdminMiddleware(userRepository, securityLogger);
   const apiKeyAuth = createApiKeyMiddleware(apiKeyRepository);
 
   // Swagger
@@ -198,7 +198,7 @@ export function createExpressApp(
   const getPublicSecretsUseCase = encryptionService
     ? new GetPublicSecrets(appRepository, environmentRepository, secretRepository, secretValueRepository, encryptionService, resolvedSecretCache)
     : undefined;
-  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase, getPublicValues));
+  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, config.sdkJwt.secret, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase, getPublicValues));
 
   // Auth routes (login rate limited)
   app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwt.secret, securityLogger));
@@ -268,7 +268,7 @@ export function createExpressApp(
     const setSecretValueUseCase = new SetSecretValue(secretRepository, environmentRepository, secretValueRepository, appRepository, encryptionService, resolvedSecretCache);
     const getSecretValueUseCase = new GetSecretValue(secretValueRepository, encryptionService);
     const revealSecretValueUseCase = new RevealSecretValue(secretValueRepository, encryptionService);
-    app.use("/api", auth, secretRoutes(createSecretUseCase, listSecretsUseCase, deleteSecretUseCase, setSecretValueUseCase, getSecretValueUseCase, revealSecretValueUseCase, recordAudit));
+    app.use("/api", auth, secretRoutes(createSecretUseCase, listSecretsUseCase, deleteSecretUseCase, setSecretValueUseCase, getSecretValueUseCase, revealSecretValueUseCase, adminAuth, recordAudit));
   }
 
   return app;

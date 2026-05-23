@@ -15,8 +15,16 @@ class InMemoryUserRepository implements UserRepository {
   async findByEmail(email: string): Promise<User | null> {
     return this.users.find((u) => u.email === email) ?? null;
   }
+  async findAll(params: { limit: number; offset: number }): Promise<User[]> {
+    return this.users.slice(params.offset, params.offset + params.limit);
+  }
   async save(user: User): Promise<void> {
-    this.users.push(user);
+    const idx = this.users.findIndex((u) => u.id.value === user.id.value);
+    if (idx >= 0) this.users[idx] = user;
+    else this.users.push(user);
+  }
+  async delete(id: string): Promise<void> {
+    this.users = this.users.filter((u) => u.id.value !== id);
   }
   async countAll(): Promise<number> {
     return this.users.length;
@@ -65,5 +73,51 @@ describe("Login", () => {
     await expect(
       useCase.execute({ email: "test@example.com", password: "wrong" })
     ).rejects.toThrow("Invalid credentials");
+  });
+
+  it("rejects a disabled user even with the correct password", async () => {
+    const hash = await bcrypt.hash("password123", 10);
+    await repository.save(
+      createUser({
+        id: "user-2",
+        email: "disabled@example.com",
+        name: "Off",
+        passwordHash: hash,
+        role: "user",
+        // createUser default is disabled: false, so we need to override via the entity directly
+      }),
+    );
+    // Manually disable the user by replacing in-place
+    const u = (await repository.findByEmail("disabled@example.com"))!;
+    Object.assign(u as unknown as Record<string, unknown>, { disabled: true });
+
+    await expect(
+      useCase.execute({ email: "disabled@example.com", password: "password123" }),
+    ).rejects.toThrow("Invalid credentials");
+  });
+
+  it("runs bcrypt.compare on unknown emails so latency does not leak existence", async () => {
+    // The placeholder-hash branch must run a real bcrypt compare. We measure
+    // that the unknown-email path takes a similar order of magnitude to the
+    // known-email path. Tolerance is generous to keep the test stable.
+    const knownStart = Date.now();
+    try {
+      await useCase.execute({ email: "test@example.com", password: "wrong" });
+    } catch {
+      /* expected */
+    }
+    const knownMs = Date.now() - knownStart;
+
+    const unknownStart = Date.now();
+    try {
+      await useCase.execute({ email: "nobody@example.com", password: "wrong" });
+    } catch {
+      /* expected */
+    }
+    const unknownMs = Date.now() - unknownStart;
+
+    // Unknown-email path must spend at least 25% of the time the known path
+    // spends, ensuring bcrypt actually ran.
+    expect(unknownMs * 4).toBeGreaterThanOrEqual(knownMs);
   });
 });

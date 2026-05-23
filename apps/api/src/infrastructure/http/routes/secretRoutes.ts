@@ -1,4 +1,6 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
+import { z } from "zod";
+import { validateBody, schemas } from "../validate.js";
 import type { CreateSecret } from "../../../application/CreateSecret.js";
 import type { ListSecrets } from "../../../application/ListSecrets.js";
 import type { DeleteSecret } from "../../../application/DeleteSecret.js";
@@ -7,6 +9,15 @@ import type { GetSecretValue } from "../../../application/GetSecretValue.js";
 import type { RevealSecretValue } from "../../../application/RevealSecretValue.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 
+const createSecretSchema = z.object({
+  key: schemas.camelCaseKey,
+  description: z.string().max(2000).optional(),
+});
+
+const setSecretValueSchema = z.object({
+  plainValue: z.string().min(1).max(100_000),
+});
+
 export function secretRoutes(
   createSecret: CreateSecret,
   listSecrets: ListSecrets,
@@ -14,6 +25,7 @@ export function secretRoutes(
   setSecretValue: SetSecretValue,
   getSecretValue: GetSecretValue,
   revealSecretValue: RevealSecretValue,
+  adminAuth: RequestHandler,
   audit?: RecordAuditEvent
 ): Router {
   const router = Router();
@@ -27,7 +39,7 @@ export function secretRoutes(
     }
   });
 
-  router.post("/apps/:appId/secrets", async (req, res) => {
+  router.post("/apps/:appId/secrets", validateBody(createSecretSchema), async (req, res) => {
     try {
       const secret = await createSecret.execute({
         appId: req.params.appId,
@@ -75,7 +87,7 @@ export function secretRoutes(
     }
   });
 
-  router.put("/secrets/:secretId/environments/:envId", async (req, res) => {
+  router.put("/secrets/:secretId/environments/:envId", validateBody(setSecretValueSchema), async (req, res) => {
     try {
       await setSecretValue.execute({
         secretId: req.params.secretId,
@@ -117,7 +129,7 @@ export function secretRoutes(
     }
   });
 
-  router.post("/secrets/:secretId/environments/:envId/reveal", async (req, res) => {
+  router.post("/secrets/:secretId/environments/:envId/reveal", adminAuth, async (req, res) => {
     try {
       const result = await revealSecretValue.execute({
         secretId: req.params.secretId,

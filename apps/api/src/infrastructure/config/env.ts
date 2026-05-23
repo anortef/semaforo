@@ -17,6 +17,9 @@ export interface Config {
   jwt: {
     secret: string;
   };
+  sdkJwt: {
+    secret: string;
+  };
   encryption: {
     key: string;
   };
@@ -50,8 +53,11 @@ export function loadConfig(): Config {
     jwt: {
       secret: requireEnv("JWT_SECRET"),
     },
+    sdkJwt: {
+      secret: requireEnv("SDK_JWT_SECRET"),
+    },
     encryption: {
-      key: process.env.ENCRYPTION_KEY ?? "",
+      key: requireEnv("ENCRYPTION_KEY"),
     },
   };
 }

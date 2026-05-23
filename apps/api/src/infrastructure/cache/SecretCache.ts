@@ -1,4 +1,4 @@
-import type Redis from "ioredis";
+import type { Redis } from "ioredis";
 
 export interface SecretCache {
   get(appKey: string, envKey: string): Promise<Record<string, string> | null>;

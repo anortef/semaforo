@@ -42,4 +42,10 @@ describe("AdminUpdateUser", () => {
       useCase.execute({ userId: "nope", name: "X", actingUserId: "admin-1" })
     ).rejects.toThrow("User not found");
   });
+
+  it("never returns the passwordHash field", async () => {
+    const updated = await useCase.execute({ userId: "u1", name: "New", actingUserId: "admin-1" });
+
+    expect("passwordHash" in updated).toBe(false);
+  });
 });

@@ -13,22 +13,29 @@ describe("ListApiKeys", () => {
   });
 
   it("returns existing keys for an environment", async () => {
-    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", key: "sk_abc" }));
-    const keys = await useCase.execute("env-1");
+    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", keyHash: "hash_existing" }));
+    const result = await useCase.execute("env-1");
 
-    expect(keys).toHaveLength(1);
+    expect(result.keys).toHaveLength(1);
+  });
+
+  it("does NOT return a fresh plaintext when keys already exist", async () => {
+    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", keyHash: "hash_existing" }));
+    const result = await useCase.execute("env-1");
+
+    expect(result.freshPlaintext).toBeUndefined();
   });
 
   it("auto-creates a key when environment has none", async () => {
-    const keys = await useCase.execute("env-1");
+    const result = await useCase.execute("env-1");
 
-    expect(keys).toHaveLength(1);
+    expect(result.keys).toHaveLength(1);
   });
 
-  it("auto-created key starts with sk_", async () => {
-    const keys = await useCase.execute("env-1");
+  it("auto-created key is returned with a fresh plaintext", async () => {
+    const result = await useCase.execute("env-1");
 
-    expect(keys[0].key).toMatch(/^sk_/);
+    expect(result.freshPlaintext).toMatch(/^sk_[a-f0-9]+$/);
   });
 
   it("auto-created key is persisted", async () => {
@@ -38,7 +45,7 @@ describe("ListApiKeys", () => {
   });
 
   it("does not auto-create when keys already exist", async () => {
-    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", key: "sk_existing" }));
+    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", keyHash: "hash_existing" }));
     await useCase.execute("env-1");
 
     expect(repo.keys).toHaveLength(1);

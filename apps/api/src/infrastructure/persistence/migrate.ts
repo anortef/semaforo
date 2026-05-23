@@ -104,6 +104,16 @@ const MIGRATIONS = [
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(secret_id, environment_id)
   )`,
+  // Migrate api_keys plaintext storage to a SHA-256 hash column.
+  // pgcrypto exposes digest(); shipped with stock Postgres images.
+  `CREATE EXTENSION IF NOT EXISTS pgcrypto`,
+  `ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS key_hash TEXT`,
+  `UPDATE api_keys
+     SET key_hash = encode(digest(key, 'sha256'), 'hex')
+   WHERE key_hash IS NULL AND key IS NOT NULL`,
+  `ALTER TABLE api_keys ALTER COLUMN key_hash SET NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS api_keys_key_hash_idx ON api_keys(key_hash)`,
+  `ALTER TABLE api_keys DROP COLUMN IF EXISTS key`,
 ];
 
 async function migrate() {

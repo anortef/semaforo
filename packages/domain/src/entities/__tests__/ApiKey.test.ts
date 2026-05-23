@@ -5,7 +5,7 @@ const validApiKeyParams = {
   id: "key-1",
   environmentId: "env-1",
   name: "Production Key",
-  key: "sk_abc123def456",
+  keyHash: "deadbeef".repeat(8),
 };
 
 describe("createApiKey", () => {
@@ -29,9 +29,14 @@ describe("createApiKey", () => {
     expect(key.name).toBe("Trimmed");
   });
 
-  it("stores the key value", () => {
+  it("stores the keyHash verbatim", () => {
     const key = createApiKey(validApiKeyParams);
-    expect(key.key).toBe("sk_abc123def456");
+    expect(key.keyHash).toBe(validApiKeyParams.keyHash);
+  });
+
+  it("never exposes a plaintext `key` field on the entity", () => {
+    const key = createApiKey(validApiKeyParams);
+    expect("key" in key).toBe(false);
   });
 
   it("sets createdAt to a Date instance", () => {
@@ -51,9 +56,9 @@ describe("createApiKey", () => {
     ).toThrow("API key name cannot be empty");
   });
 
-  it("rejects an empty key", () => {
+  it("rejects an empty keyHash", () => {
     expect(() =>
-      createApiKey({ ...validApiKeyParams, key: "" })
-    ).toThrow("API key value cannot be empty");
+      createApiKey({ ...validApiKeyParams, keyHash: "" })
+    ).toThrow("API key hash cannot be empty");
   });
 });

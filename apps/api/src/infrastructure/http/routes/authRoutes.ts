@@ -1,14 +1,21 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import { z } from "zod";
 import type { Login } from "../../../application/Login.js";
 import { createAuthMiddleware } from "../middleware/authMiddleware.js";
 import type { SecurityLogger } from "../../logging/securityLogger.js";
+import { validateBody, schemas } from "../validate.js";
+
+const loginSchema = z.object({
+  email: schemas.email,
+  password: schemas.password,
+});
 
 export function authRoutes(login: Login, jwtSecret: string, logger?: SecurityLogger): Router {
   const router = Router();
   const auth = createAuthMiddleware(jwtSecret);
 
-  router.post("/login", async (req, res) => {
+  router.post("/login", validateBody(loginSchema), async (req, res) => {
     try {
       const result = await login.execute({
         email: req.body.email,

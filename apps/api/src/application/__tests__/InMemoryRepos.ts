@@ -69,7 +69,7 @@ export class InMemoryToggleValueRepository implements ToggleValueRepository {
 export class InMemoryApiKeyRepository implements ApiKeyRepository {
   keys: ApiKey[] = [];
   async findById(id: string) { return this.keys.find((k) => k.id.value === id) ?? null; }
-  async findByKey(key: string) { return this.keys.find((k) => k.key === key) ?? null; }
+  async findByKeyHash(keyHash: string) { return this.keys.find((k) => k.keyHash === keyHash) ?? null; }
   async findByEnvironmentId(envId: string) { return this.keys.filter((k) => k.environmentId === envId); }
   async save(apiKey: ApiKey) {
     const idx = this.keys.findIndex((k) => k.id.value === apiKey.id.value);

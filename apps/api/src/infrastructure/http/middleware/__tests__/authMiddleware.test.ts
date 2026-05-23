@@ -50,6 +50,19 @@ describe("authMiddleware", () => {
     expect(res.body.ok).toBe(true);
   });
 
+  it("rejects a token signed with an algorithm other than HS256", async () => {
+    // Forge a token with `none` algorithm — should be rejected by algorithms allowlist.
+    const token = jwt.sign(
+      { userId: "u1", email: "a@b.com", role: "admin" },
+      "",
+      { algorithm: "none" } as jwt.SignOptions,
+    );
+    const res = await request(buildApp())
+      .get("/protected")
+      .set("Authorization", `Bearer ${token}`);
+    expect(res.status).toBe(401);
+  });
+
   it("attaches user info to res.locals", async () => {
     const app = express();
     app.use(createAuthMiddleware(SECRET));

@@ -14,8 +14,11 @@ export function apiKeyRoutes(
 
   router.get("/:environmentId/api-keys", async (req, res) => {
     try {
-      const keys = await listApiKeys.execute(req.params.environmentId);
-      res.json(keys);
+      const { keys, freshPlaintext } = await listApiKeys.execute(req.params.environmentId);
+      // `keys` is the safe list — never contains plaintext. `plaintext` is
+      // only populated when a key was auto-provisioned during this request,
+      // and must be surfaced to the caller exactly once.
+      res.json({ keys, plaintext: freshPlaintext });
     } catch {
       res.status(500).json({ error: "Failed to fetch API keys" });
     }
@@ -23,11 +26,13 @@ export function apiKeyRoutes(
 
   router.post("/:environmentId/api-keys", async (req, res) => {
     try {
-      const key = await createApiKey.execute({
+      const { apiKey, plaintext } = await createApiKey.execute({
         environmentId: req.params.environmentId,
       });
-      logger?.apiKeyCreated(req.params.environmentId, key.id.value);
-      res.status(201).json(key);
+      logger?.apiKeyCreated(req.params.environmentId, apiKey.id.value);
+      // Returning the plaintext here is the one-and-only moment the caller
+      // will ever see it; the database only has the hash.
+      res.status(201).json({ apiKey, plaintext });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to create API key";

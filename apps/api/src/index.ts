@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import { loadConfig } from "./infrastructure/config/env.js";
 import { createPool } from "./infrastructure/persistence/database.js";
 import { RedisToggleCache, RedisRequestCounter, RedisRateLimitConfigCache } from "./infrastructure/cache/RedisToggleCache.js";

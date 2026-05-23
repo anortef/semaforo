@@ -14,6 +14,7 @@ import {
   type AppMemberRole,
 } from "@semaforo/domain";
 import type { ImportApp } from "./ImportApp.js";
+import { hashApiKey } from "../infrastructure/crypto/hashApiKey.js";
 
 export interface ImportResult {
   success: boolean;
@@ -64,7 +65,10 @@ export interface FullExport {
       values: Record<string, string>;
     }>;
     members: Array<{ userEmail: string; role: string }>;
-    apiKeys: Array<{ environmentKey: string; key: string; name: string }>;
+    // `keyHash` is the canonical post-audit field. `key` is accepted for
+    // backwards compatibility with backups taken before plaintext storage
+    // was removed; it will be hashed on import.
+    apiKeys: Array<{ environmentKey: string; keyHash?: string; key?: string; name: string }>;
   }>;
   exportedAt: string;
 }
@@ -134,11 +138,13 @@ export class ImportAll {
       for (const ak of appData.apiKeys) {
         const envId = envIdByKey.get(ak.environmentKey);
         if (!envId) continue;
+        const keyHash = ak.keyHash ?? (ak.key ? hashApiKey(ak.key) : "");
+        if (!keyHash) continue;
         const apiKey = createApiKey({
           id: uuid(),
           environmentId: envId,
           name: ak.name,
-          key: ak.key,
+          keyHash,
         });
         await this.apiKeyRepository.save(apiKey);
       }

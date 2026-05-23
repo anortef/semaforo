@@ -24,6 +24,7 @@ function createSpyCache(): ToggleCache & { calls: Record<string, unknown[][]> } 
       calls.setByApiKey.push([apiKey, toggles, ttl]);
       store.set(`apikey:${apiKey}`, JSON.stringify(toggles));
     },
+    async getCacheInfo() { return null; },
   };
 }
 
@@ -67,7 +68,7 @@ function buildApp(
     }
     next();
   });
-  app.use(publicRoutes(getPublicToggles, environmentRepository, appRepository, cache));
+  app.use(publicRoutes(getPublicToggles, "test-sdk-secret", environmentRepository, appRepository, cache));
 
   return { app, getPublicToggles };
 }

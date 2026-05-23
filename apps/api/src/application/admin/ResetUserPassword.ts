@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import { updateUser, type UserRepository } from "@semaforo/domain";
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 export class AdminResetUserPassword {
   constructor(private userRepository: UserRepository) {}

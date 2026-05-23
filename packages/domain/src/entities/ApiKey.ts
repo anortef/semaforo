@@ -6,7 +6,10 @@ export interface ApiKey {
   readonly id: ApiKeyId;
   readonly environmentId: string;
   readonly name: string;
-  readonly key: string;
+  // SHA-256 hex digest of the high-entropy random API key. The plaintext
+  // is never persisted; only the hash is stored at rest. See
+  // hashApiKey in the api workspace for the canonical hashing function.
+  readonly keyHash: string;
   readonly createdAt: Date;
 }
 
@@ -14,19 +17,19 @@ export function createApiKey(params: {
   id: string;
   environmentId: string;
   name: string;
-  key: string;
+  keyHash: string;
 }): ApiKey {
   if (params.name.trim().length === 0) {
     throw new Error("API key name cannot be empty");
   }
-  if (params.key.length === 0) {
-    throw new Error("API key value cannot be empty");
+  if (params.keyHash.length === 0) {
+    throw new Error("API key hash cannot be empty");
   }
   return {
     id: { value: params.id },
     environmentId: params.environmentId,
     name: params.name.trim(),
-    key: params.key,
+    keyHash: params.keyHash,
     createdAt: new Date(),
   };
 }

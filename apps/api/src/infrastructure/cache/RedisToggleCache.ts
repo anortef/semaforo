@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 
 export interface CacheInfo {
   sizeBytes: number;
@@ -113,7 +113,7 @@ export class RedisRequestCounter implements RequestCounter {
 
   async getAllEnvironmentIds(): Promise<string[]> {
     const keys = await this.redis.keys("requests:*");
-    return keys.map((k) => k.replace("requests:", ""));
+    return keys.map((k: string) => k.replace("requests:", ""));
   }
 
   async getCurrentCount(environmentId: string): Promise<number> {

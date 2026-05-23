@@ -10,7 +10,7 @@ describe("DeleteApiKey", () => {
   beforeEach(() => {
     repo = new InMemoryApiKeyRepository();
     useCase = new DeleteApiKey(repo);
-    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", key: "sk_abc" }));
+    repo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "n", keyHash: "hash_for_sk_abc" }));
   });
 
   it("deletes an existing key", async () => {

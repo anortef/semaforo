@@ -1,4 +1,5 @@
-import type { User, UserRepository } from "@semaforo/domain";
+import type { UserRepository } from "@semaforo/domain";
+import { toSafeUser, type SafeUser } from "./SafeUser.js";
 
 export class AdminListUsers {
   constructor(private userRepository: UserRepository) {}
@@ -6,11 +7,11 @@ export class AdminListUsers {
   async execute(params: {
     limit: number;
     offset: number;
-  }): Promise<{ users: User[]; total: number }> {
+  }): Promise<{ users: SafeUser[]; total: number }> {
     const [users, total] = await Promise.all([
       this.userRepository.findAll(params),
       this.userRepository.countAll(),
     ]);
-    return { users, total };
+    return { users: users.map(toSafeUser), total };
   }
 }

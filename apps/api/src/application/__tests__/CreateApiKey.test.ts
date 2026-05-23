@@ -2,15 +2,16 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { CreateApiKey } from "../CreateApiKey.js";
 import type { ApiKey, ApiKeyRepository, Environment, EnvironmentRepository } from "@semaforo/domain";
 import { createEnvironment } from "@semaforo/domain";
+import { hashApiKey } from "../../infrastructure/crypto/hashApiKey.js";
 
 class InMemoryApiKeyRepository implements ApiKeyRepository {
-  private keys: ApiKey[] = [];
+  keys: ApiKey[] = [];
 
   async findById(id: string): Promise<ApiKey | null> {
     return this.keys.find((k) => k.id.value === id) ?? null;
   }
-  async findByKey(key: string): Promise<ApiKey | null> {
-    return this.keys.find((k) => k.key === key) ?? null;
+  async findByKeyHash(keyHash: string): Promise<ApiKey | null> {
+    return this.keys.find((k) => k.keyHash === keyHash) ?? null;
   }
   async findByEnvironmentId(environmentId: string): Promise<ApiKey[]> {
     return this.keys.filter((k) => k.environmentId === environmentId);
@@ -60,9 +61,13 @@ describe("CreateApiKey", () => {
   it("creates an API key for an existing environment", async () => {
     const result = await useCase.execute({ environmentId: "env-1" });
 
-    expect(result.environmentId).toBe("env-1");
-    expect(result.key).toMatch(/^sk_/);
-    expect(result.key.length).toBeGreaterThan(20);
+    expect(result.apiKey.environmentId).toBe("env-1");
+  });
+
+  it("returns the plaintext exactly once with sk_ prefix", async () => {
+    const result = await useCase.execute({ environmentId: "env-1" });
+
+    expect(result.plaintext).toMatch(/^sk_[a-f0-9]+$/);
   });
 
   it("rejects non-existent environment", async () => {
@@ -71,10 +76,23 @@ describe("CreateApiKey", () => {
     ).rejects.toThrow("Environment not found");
   });
 
-  it("generates unique keys", async () => {
-    const k1 = await useCase.execute({ environmentId: "env-1" });
-    const k2 = await useCase.execute({ environmentId: "env-1" });
+  it("generates unique plaintext per call", async () => {
+    const a = await useCase.execute({ environmentId: "env-1" });
+    const b = await useCase.execute({ environmentId: "env-1" });
 
-    expect(k1.key).not.toBe(k2.key);
+    expect(a.plaintext).not.toBe(b.plaintext);
+  });
+
+  it("never persists the plaintext in the repository", async () => {
+    const { plaintext } = await useCase.execute({ environmentId: "env-1" });
+
+    const stored = JSON.stringify(apiKeyRepo.keys);
+    expect(stored).not.toContain(plaintext);
+  });
+
+  it("persists the SHA-256 hash of the plaintext as keyHash", async () => {
+    const { plaintext } = await useCase.execute({ environmentId: "env-1" });
+
+    expect(apiKeyRepo.keys[0]!.keyHash).toBe(hashApiKey(plaintext));
   });
 });

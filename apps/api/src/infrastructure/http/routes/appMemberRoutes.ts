@@ -1,9 +1,16 @@
 import { Router } from "express";
+import { z } from "zod";
+import { validateBody, schemas } from "../validate.js";
 import type { AddAppMember } from "../../../application/AddAppMember.js";
 import type { RemoveAppMember } from "../../../application/RemoveAppMember.js";
 import type { ListAppMembers } from "../../../application/ListAppMembers.js";
 import type { UserRepository } from "@semaforo/domain";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
+
+const addMemberSchema = z.object({
+  userId: z.string().min(1).max(200),
+  role: schemas.appMemberRole.optional(),
+});
 
 export function appMemberRoutes(
   addMember: AddAppMember,
@@ -37,7 +44,7 @@ export function appMemberRoutes(
     }
   });
 
-  router.post("/:appId/members", async (req, res) => {
+  router.post("/:appId/members", validateBody(addMemberSchema), async (req, res) => {
     try {
       const member = await addMember.execute({
         appId: req.params.appId,

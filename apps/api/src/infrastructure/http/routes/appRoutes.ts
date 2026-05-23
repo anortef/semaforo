@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { z } from "zod";
+import { validateBody, schemas } from "../validate.js";
 import type { CreateApp } from "../../../application/CreateApp.js";
 import type { ListApps } from "../../../application/ListApps.js";
 import type { GetApp } from "../../../application/GetApp.js";
@@ -9,6 +11,12 @@ import type { DeleteApp } from "../../../application/DeleteApp.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type { GetAppAuditLog } from "../../../application/GetAppAuditLog.js";
 import type { UserRepository } from "@semaforo/domain";
+
+const createAppSchema = z.object({
+  name: schemas.name,
+  key: schemas.appKey,
+  description: z.string().max(2000).optional(),
+});
 
 export function appRoutes(
   createApp: CreateApp,
@@ -129,7 +137,7 @@ export function appRoutes(
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.post("/", async (req, res) => {
+  router.post("/", validateBody(createAppSchema), async (req, res) => {
     try {
       const app = await createApp.execute({
           name: req.body.name,

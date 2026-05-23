@@ -121,6 +121,7 @@ const defaultDataDir = path.join(process.env.HOME ?? "~", ".semaforo");
 // --- Config ---
 interface StandaloneConfig {
   jwtSecret: string;
+  sdkJwtSecret: string;
   encryptionKey: string;
   dataDir?: string;
   port?: number;
@@ -143,10 +144,18 @@ function resolveConfigPath(): string {
 
 function loadOrCreateConfig(configPath: string): StandaloneConfig {
   if (fs.existsSync(configPath)) {
-    return JSON.parse(fs.readFileSync(configPath, "utf-8")) as StandaloneConfig;
+    const existing = JSON.parse(fs.readFileSync(configPath, "utf-8")) as Partial<StandaloneConfig>;
+    // Back-compat: pre-audit configs lacked an SDK JWT secret. Mint one
+    // and persist so the secret stays stable across restarts.
+    if (!existing.sdkJwtSecret) {
+      existing.sdkJwtSecret = crypto.randomBytes(32).toString("hex");
+      fs.writeFileSync(configPath, JSON.stringify(existing, null, 2));
+    }
+    return existing as StandaloneConfig;
   }
   const config: StandaloneConfig = {
     jwtSecret: crypto.randomBytes(32).toString("hex"),
+    sdkJwtSecret: crypto.randomBytes(32).toString("hex"),
     encryptionKey: crypto.randomBytes(32).toString("hex"),
     dataDir: defaultDataDir,
     port: 3001,
@@ -389,12 +398,12 @@ async function main() {
   app.use(express.json({ limit: "1mb" }));
 
   const auth = createAuthMiddleware(config.jwtSecret, securityLogger);
-  const adminAuth = createAdminMiddleware(securityLogger);
+  const adminAuth = createAdminMiddleware(userRepository, securityLogger);
   const apiKeyAuth = createApiKeyMiddleware(apiKeyRepository);
 
   // Public routes
   const getPublicSecretsUseCase = new GetPublicSecrets(appRepository, environmentRepository, secretRepository, secretValueRepository, encryptionService, secretCache);
-  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase, getPublicValues));
+  app.use("/api/public", createPublicLimiter(rateLimitReader), apiKeyAuth, publicRoutes(getPublicToggles, config.sdkJwtSecret, environmentRepository, appRepository, cache, requestCounter, rateLimitReader, getPublicSecretsUseCase, getPublicValues));
 
   // Auth
   app.use("/api/auth", createLoginLimiter(), authRoutes(login, config.jwtSecret, securityLogger));
@@ -434,7 +443,7 @@ async function main() {
   const setSecretValueUseCase = new SetSecretValue(secretRepository, environmentRepository, secretValueRepository, appRepository, encryptionService, secretCache);
   const getSecretValueUseCase = new GetSecretValue(secretValueRepository, encryptionService);
   const revealSecretValueUseCase = new RevealSecretValue(secretValueRepository, encryptionService);
-  app.use("/api", auth, secretRoutes(createSecretUseCase, listSecretsUseCase, deleteSecretUseCase, setSecretValueUseCase, getSecretValueUseCase, revealSecretValueUseCase, recordAudit));
+  app.use("/api", auth, secretRoutes(createSecretUseCase, listSecretsUseCase, deleteSecretUseCase, setSecretValueUseCase, getSecretValueUseCase, revealSecretValueUseCase, adminAuth, recordAudit));
 
   // --- Serve frontend ---
   const __dirname = path.dirname(fileURLToPath(import.meta.url));

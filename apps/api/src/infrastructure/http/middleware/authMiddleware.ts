@@ -25,7 +25,7 @@ export function createAuthMiddleware(secret: string, logger?: SecurityLogger) {
     }
 
     try {
-      const payload = jwt.verify(token, secret) as TokenPayload;
+      const payload = jwt.verify(token, secret, { algorithms: ["HS256"] }) as TokenPayload;
       res.locals.userId = payload.userId;
       res.locals.email = payload.email;
       res.locals.role = payload.role;

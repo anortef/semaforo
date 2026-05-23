@@ -1,8 +1,9 @@
 import bcrypt from "bcrypt";
 import { v4 as uuid } from "uuid";
-import { createUser, type User, type UserRepository, type UserRole } from "@semaforo/domain";
+import { createUser, type UserRepository, type UserRole } from "@semaforo/domain";
+import { toSafeUser, type SafeUser } from "./SafeUser.js";
 
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = 12;
 
 export class AdminCreateUser {
   constructor(private userRepository: UserRepository) {}
@@ -12,7 +13,7 @@ export class AdminCreateUser {
     name: string;
     password: string;
     role: UserRole;
-  }): Promise<User> {
+  }): Promise<SafeUser> {
     const existing = await this.userRepository.findByEmail(params.email.toLowerCase());
     if (existing) {
       throw new Error(`User with email "${params.email}" already exists`);
@@ -28,6 +29,6 @@ export class AdminCreateUser {
     });
 
     await this.userRepository.save(user);
-    return user;
+    return toSafeUser(user);
   }
 }

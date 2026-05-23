@@ -23,7 +23,10 @@ export interface MemberExport {
 
 export interface ApiKeyExport {
   environmentKey: string;
-  key: string;
+  // SHA-256 hash of the API key. The plaintext is never persisted server-side
+  // and therefore cannot be exported. A consumer restoring this backup will
+  // be able to validate existing keys but cannot recover the original plaintext.
+  keyHash: string;
   name: string;
 }
 
@@ -72,7 +75,7 @@ export class ExportAll {
           for (const envEntity of envEntities) {
             const keys = await this.apiKeyRepository.findByEnvironmentId(envEntity.id.value);
             for (const k of keys) {
-              apiKeys.push({ environmentKey: envEntity.key, key: k.key, name: k.name });
+              apiKeys.push({ environmentKey: envEntity.key, keyHash: k.keyHash, name: k.name });
             }
           }
         }

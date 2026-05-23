@@ -12,10 +12,10 @@ export class PgApiKeyRepository implements ApiKeyRepository {
     return result.rows[0] ? toDomain(result.rows[0]) : null;
   }
 
-  async findByKey(key: string): Promise<ApiKey | null> {
+  async findByKeyHash(keyHash: string): Promise<ApiKey | null> {
     const result = await this.pool.query(
-      "SELECT * FROM api_keys WHERE key = $1",
-      [key]
+      "SELECT * FROM api_keys WHERE key_hash = $1",
+      [keyHash]
     );
     return result.rows[0] ? toDomain(result.rows[0]) : null;
   }
@@ -30,10 +30,10 @@ export class PgApiKeyRepository implements ApiKeyRepository {
 
   async save(apiKey: ApiKey): Promise<void> {
     await this.pool.query(
-      `INSERT INTO api_keys (id, environment_id, name, key, created_at)
+      `INSERT INTO api_keys (id, environment_id, name, key_hash, created_at)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (id) DO UPDATE SET name = $3`,
-      [apiKey.id.value, apiKey.environmentId, apiKey.name, apiKey.key, apiKey.createdAt]
+      [apiKey.id.value, apiKey.environmentId, apiKey.name, apiKey.keyHash, apiKey.createdAt]
     );
   }
 
@@ -47,7 +47,7 @@ function toDomain(row: Record<string, unknown>): ApiKey {
     id: { value: row.id as string },
     environmentId: row.environment_id as string,
     name: row.name as string,
-    key: row.key as string,
+    keyHash: row.key_hash as string,
     createdAt: new Date(row.created_at as string),
   };
 }

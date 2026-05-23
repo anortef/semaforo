@@ -11,6 +11,9 @@ class InMemoryUserRepository implements UserRepository {
   async findByEmail(email: string): Promise<User | null> {
     return this.users.find((u) => u.email === email) ?? null;
   }
+  async findAll(params: { limit: number; offset: number }): Promise<User[]> {
+    return this.users.slice(params.offset, params.offset + params.limit);
+  }
   async save(user: User): Promise<void> {
     const index = this.users.findIndex((u) => u.id.value === user.id.value);
     if (index >= 0) {
@@ -18,6 +21,9 @@ class InMemoryUserRepository implements UserRepository {
     } else {
       this.users.push(user);
     }
+  }
+  async delete(id: string): Promise<void> {
+    this.users = this.users.filter((u) => u.id.value !== id);
   }
   async countAll(): Promise<number> {
     return this.users.length;

@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { z } from "zod";
+import { validateBody, schemas } from "../validate.js";
 import type { AdminCreateUser } from "../../../application/admin/CreateUser.js";
 import type { AdminListUsers } from "../../../application/admin/ListUsers.js";
 import type { AdminUpdateUser } from "../../../application/admin/UpdateUser.js";
@@ -36,6 +38,29 @@ interface AdminRouteDeps {
   onSettingChanged?: (key: string) => Promise<void>;
 }
 
+const createUserSchema = z.object({
+  email: schemas.email,
+  name: schemas.name,
+  password: schemas.password,
+  role: schemas.userRole,
+});
+
+const updateUserSchema = z
+  .object({
+    name: schemas.name.optional(),
+    role: schemas.userRole.optional(),
+    disabled: z.boolean().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "must include at least one field" });
+
+const resetPasswordSchema = z.object({
+  newPassword: schemas.password,
+});
+
+const updateSettingSchema = z.object({
+  value: z.string().min(1).max(10_000),
+});
+
 export function adminRoutes(deps: AdminRouteDeps): Router {
   const router = Router();
 
@@ -51,7 +76,7 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
     }
   });
 
-  router.post("/users", async (req, res) => {
+  router.post("/users", validateBody(createUserSchema), async (req, res) => {
     try {
       const user = await deps.createUser.execute({
         email: req.body.email,
@@ -73,7 +98,7 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
     }
   });
 
-  router.patch("/users/:userId", async (req, res) => {
+  router.patch("/users/:userId", validateBody(updateUserSchema), async (req, res) => {
     try {
       const updated = await deps.updateUser.execute({
         userId: req.params.userId,
@@ -116,7 +141,7 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
     }
   });
 
-  router.post("/users/:userId/reset-password", async (req, res) => {
+  router.post("/users/:userId/reset-password", validateBody(resetPasswordSchema), async (req, res) => {
     try {
       await deps.resetPassword.execute({
         userId: req.params.userId,
@@ -146,7 +171,7 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
     }
   });
 
-  router.put("/settings/:key", async (req, res) => {
+  router.put("/settings/:key", validateBody(updateSettingSchema), async (req, res) => {
     try {
       const setting = await deps.updateSetting.execute({
         key: req.params.key,
@@ -158,7 +183,12 @@ export function adminRoutes(deps: AdminRouteDeps): Router {
         action: "setting.updated",
         resourceType: "setting",
         resourceId: req.params.key,
-        details: JSON.stringify({ value: req.body.value }),
+        // Deliberately do NOT include req.body.value — settings may store
+        // sensitive material (tokens, URLs, etc.) that should not be
+        // copied verbatim into the audit table. The resourceId records
+        // *which* setting changed; the value itself is read from the
+        // live setting table when needed.
+        details: "{}",
       });
       res.json(setting);
     } catch (error) {

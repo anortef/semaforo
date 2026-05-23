@@ -90,10 +90,27 @@ describe("ImportAll", () => {
     expect(memberRepo.members).toHaveLength(1);
   });
 
-  it("restores API keys with original key values", async () => {
+  it("restores API keys by hashing the legacy plaintext field on import", async () => {
+    // sampleExport carries a legacy `key` field with the plaintext.
+    // ImportAll must hash it on the way in — never persist the plaintext.
     await useCase.execute(sampleExport);
+    const { hashApiKey } = await import("../../infrastructure/crypto/hashApiKey.js");
 
-    expect(apiKeyRepo.keys[0].key).toBe("sk_restored123");
+    expect(apiKeyRepo.keys[0].keyHash).toBe(hashApiKey("sk_restored123"));
+  });
+
+  it("restores API keys directly from a `keyHash` field when present", async () => {
+    const withHash: FullExport = {
+      ...sampleExport,
+      apps: [{
+        ...sampleExport.apps[0],
+        apiKeys: [{ environmentKey: "prod", keyHash: "explicit-precomputed-hash", name: "key2" }],
+      }],
+    };
+
+    await useCase.execute(withHash);
+
+    expect(apiKeyRepo.keys[0].keyHash).toBe("explicit-precomputed-hash");
   });
 
   it("restores apps", async () => {

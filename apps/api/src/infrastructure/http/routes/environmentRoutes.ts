@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { z } from "zod";
+import { validateBody, schemas } from "../validate.js";
 import type { AppRepository, EnvironmentRepository } from "@semaforo/domain";
 import type { CreateEnvironment } from "../../../application/CreateEnvironment.js";
 import type { ListEnvironments } from "../../../application/ListEnvironments.js";
@@ -6,6 +8,19 @@ import type { UpdateEnvironment } from "../../../application/UpdateEnvironment.j
 import type { DeleteEnvironment } from "../../../application/DeleteEnvironment.js";
 import type { ToggleCache } from "../../cache/RedisToggleCache.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
+
+const createEnvironmentSchema = z.object({
+  name: schemas.name,
+  key: schemas.envKey,
+  cacheTtlSeconds: schemas.cacheTtlSeconds.optional(),
+});
+
+const updateEnvironmentSchema = z
+  .object({
+    name: schemas.name.optional(),
+    cacheTtlSeconds: schemas.cacheTtlSeconds.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "must include at least one field" });
 
 export function environmentRoutes(
   createEnvironment: CreateEnvironment,
@@ -101,7 +116,7 @@ export function environmentRoutes(
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.post("/apps/:appId/environments", async (req, res) => {
+  router.post("/apps/:appId/environments", validateBody(createEnvironmentSchema), async (req, res) => {
     try {
       const environment = await createEnvironment.execute({
         appId: req.params.appId,
@@ -165,7 +180,7 @@ export function environmentRoutes(
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.patch("/environments/:environmentId", async (req, res) => {
+  router.patch("/environments/:environmentId", validateBody(updateEnvironmentSchema), async (req, res) => {
     try {
       const environment = await updateEnvironment.execute({
         environmentId: req.params.environmentId,

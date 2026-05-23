@@ -43,7 +43,7 @@ describe("ExportAll", () => {
     userRepo.save(createUser({ id: "user-1", email: "dev@test.com", name: "Dev", passwordHash: "$2b$hash", role: "user" }));
     settingRepo.save(createSystemSetting({ id: "s-1", key: "publicDomain", value: "https://example.com" }));
     memberRepo.save(createAppMember({ id: "m-1", appId: "app-1", userId: "user-1", role: "owner" }));
-    apiKeyRepo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "key1", key: "sk_abc123" }));
+    apiKeyRepo.save(createApiKey({ id: "k-1", environmentId: "env-1", name: "key1", keyHash: "hash_for_sk_abc123" }));
   });
 
   it("excludes the seed admin user", async () => {
@@ -70,9 +70,9 @@ describe("ExportAll", () => {
     expect(result.apps[0].members[0].userEmail).toBe("dev@test.com");
   });
 
-  it("exports API keys with original values", async () => {
+  it("exports API keys with their stored hash (never plaintext)", async () => {
     const result = await useCase.execute();
 
-    expect(result.apps[0].apiKeys[0].key).toBe("sk_abc123");
+    expect(result.apps[0].apiKeys[0].keyHash).toBe("hash_for_sk_abc123");
   });
 });

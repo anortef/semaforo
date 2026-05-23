@@ -8,6 +8,7 @@ import {
   type ApiKeyRepository,
 } from "@semaforo/domain";
 import { v4 as uuid } from "uuid";
+import { hashApiKey } from "../infrastructure/crypto/hashApiKey.js";
 
 export class CreateEnvironment {
   constructor(
@@ -46,11 +47,12 @@ export class CreateEnvironment {
     await this.environmentRepository.save(environment);
 
     if (this.apiKeyRepository) {
+      const plaintext = `sk_${crypto.randomBytes(24).toString("hex")}`;
       const apiKey = createApiKey({
         id: uuid(),
         environmentId: environment.id.value,
         name: uuid(),
-        key: `sk_${crypto.randomBytes(24).toString("hex")}`,
+        keyHash: hashApiKey(plaintext),
       });
       await this.apiKeyRepository.save(apiKey);
     }

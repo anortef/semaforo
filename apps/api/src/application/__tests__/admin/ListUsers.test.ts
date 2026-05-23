@@ -25,4 +25,11 @@ describe("AdminListUsers", () => {
 
     expect(result.users).toHaveLength(1);
   });
+
+  it("never leaks passwordHash to the response", async () => {
+    const result = await useCase.execute({ limit: 10, offset: 0 });
+
+    const leaks = result.users.filter((u) => "passwordHash" in u);
+    expect(leaks).toHaveLength(0);
+  });
 });

@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { z } from "zod";
+import { validateBody, schemas } from "../validate.js";
 import type { CreateFeatureToggle } from "../../../application/CreateFeatureToggle.js";
 import type { SetToggleValue } from "../../../application/SetToggleValue.js";
 import type { ListToggles } from "../../../application/ListToggles.js";
@@ -6,6 +8,21 @@ import type { GetPublicToggles } from "../../../application/GetPublicToggles.js"
 import type { DeleteFeatureToggle } from "../../../application/DeleteFeatureToggle.js";
 import type { RecordAuditEvent } from "../../../application/admin/RecordAuditEvent.js";
 import type { ToggleValueRepository, EnvironmentRepository } from "@semaforo/domain";
+
+const createToggleSchema = z.object({
+  name: schemas.name,
+  key: schemas.camelCaseKey,
+  description: z.string().max(2000).optional(),
+  type: schemas.toggleType.optional(),
+});
+
+const setToggleValueSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    stringValue: z.string().max(10_000).optional(),
+    rolloutPercentage: schemas.rolloutPercentage.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "must include at least one field" });
 
 export function toggleRoutes(
   createToggle: CreateFeatureToggle,
@@ -118,7 +135,7 @@ export function toggleRoutes(
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.post("/apps/:appId/toggles", async (req, res) => {
+  router.post("/apps/:appId/toggles", validateBody(createToggleSchema), async (req, res) => {
     try {
       const toggle = await createToggle.execute({
         appId: req.params.appId,
@@ -190,7 +207,7 @@ export function toggleRoutes(
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
-  router.put("/toggles/:toggleId/environments/:environmentId", async (req, res) => {
+  router.put("/toggles/:toggleId/environments/:environmentId", validateBody(setToggleValueSchema), async (req, res) => {
     try {
       const value = await setToggleValue.execute({
         toggleId: req.params.toggleId,

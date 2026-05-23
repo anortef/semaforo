@@ -1,4 +1,5 @@
-import { updateUser, type User, type UserRepository, type UserRole } from "@semaforo/domain";
+import { updateUser, type UserRepository, type UserRole } from "@semaforo/domain";
+import { toSafeUser, type SafeUser } from "./SafeUser.js";
 
 export class AdminUpdateUser {
   constructor(private userRepository: UserRepository) {}
@@ -9,7 +10,7 @@ export class AdminUpdateUser {
     name?: string;
     role?: UserRole;
     disabled?: boolean;
-  }): Promise<User> {
+  }): Promise<SafeUser> {
     if (params.role && params.userId === params.actingUserId) {
       throw new Error("Cannot change your own role");
     }
@@ -26,6 +27,6 @@ export class AdminUpdateUser {
     });
 
     await this.userRepository.save(updated);
-    return updated;
+    return toSafeUser(updated);
   }
 }
