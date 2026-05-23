@@ -89,14 +89,15 @@ Configured via `.env` file (created automatically by `start.sh`):
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `JWT_SECRET` | Secret for signing JWT tokens | Yes |
-| `ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM secret encryption | No (secrets feature disabled without it) |
+| `JWT_SECRET` | Secret for signing admin/session JWT tokens | Yes |
+| `SDK_JWT_SECRET` | Secret used to sign the `x-user-id` JWT consumed by the public API. Distribute to SDK consumers so they can mint per-request identity tokens. | Yes |
+| `ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM secret encryption | Yes |
 | `CORS_ORIGIN` | Allowed CORS origin | Yes (defaults to `http://localhost:5173` in docker-compose) |
 | `NO_WATCH` | Set to any value to disable hot reload (builds and runs compiled JS) | No |
 
-`JWT_SECRET` and `CORS_ORIGIN` are **required** — the API will fail to start without them. `ENCRYPTION_KEY` is optional — if omitted, the secrets feature is simply unavailable. Set `NO_WATCH=1` in `.env` to disable hot reload for production deployments.
+All four secrets are **required** — the API will fail-fast on startup if any is missing. Set `NO_WATCH=1` in `.env` to disable hot reload for production deployments.
 
-In standalone mode, these are auto-generated and stored in `config.json` — no `.env` file needed.
+In standalone mode, `JWT_SECRET`, `SDK_JWT_SECRET`, and `ENCRYPTION_KEY` are auto-generated on first run and stored in `config.json` — no `.env` file needed.
 
 ## Default Credentials
 
@@ -119,7 +120,7 @@ Configurable text values per environment (e.g., banner messages, feature labels)
 Per-environment encrypted secrets (e.g., database passwords, API tokens). Values are encrypted at rest with AES-256-GCM using a master key. Each encryption uses a unique IV.
 
 - **Admin UI**: Secrets page per app — create secrets, set values per environment, masked display with a Reveal button
-- **Reveal is audit-logged** — every reveal action is recorded in the audit log
+- **Reveal is admin-only and audit-logged** — only users with the `admin` system role can call the reveal endpoint; every reveal action is recorded in the audit log
 - **Public API**: Client apps fetch decrypted secrets via API key, same pattern as toggles
 
 ```bash
@@ -137,14 +138,26 @@ Response:
 ### A/B Testing
 Per-toggle, per-environment rollout percentages (0-100%). Click "A/B Testing" on any boolean toggle to expand the rollout configuration. Set a percentage per environment and click "Apply".
 
-- **With `x-user-id` header**: deterministic — same user always gets the same result (hash-based bucketing)
-- **Without `x-user-id`**: random per request
+- **With `x-user-id` JWT**: deterministic — same user always gets the same result (hash-based bucketing on the verified `userId` claim).
+- **Without `x-user-id` JWT**: random per request.
+
+The `x-user-id` header is a JWT signed with `SDK_JWT_SECRET` (HS256) carrying a `userId` claim. Unsigned or wrong-secret tokens are rejected with `401`. This prevents callers from spoofing arbitrary user identities to dodge percentage rollouts.
+
+```js
+// Server-side: mint a per-request identity token
+import jwt from "jsonwebtoken";
+const userIdToken = jwt.sign(
+  { userId: "user-123" },
+  process.env.SDK_JWT_SECRET,
+  { algorithm: "HS256", expiresIn: "5m" },
+);
+```
 
 ```bash
 # Deterministic A/B for a specific user
 curl /api/public/toggles \
   -H "x-api-key: sk_..." \
-  -H "x-user-id: user-123"
+  -H "x-user-id: $USER_ID_TOKEN"
 ```
 
 ### Metrics
@@ -266,16 +279,22 @@ Available at `/admin` in the web UI (admin role required).
 
 ## Security
 
-- JWT authentication with configurable secret (required, no default)
-- AES-256-GCM encryption for secrets at rest (unique IV per value, 32-byte master key)
-- bcrypt password hashing (10 salt rounds)
-- Two-tier rate limiting: generous for cached responses (configurable, default 100k/min), strict for DB hits (configurable, default 100/min)
-- Rate limits configurable via admin settings, stored in Postgres, served from Redis
-- Helmet security headers
-- API keys via `x-api-key` header only
-- Request body size limited to 1MB
-- Audit logging for all resource mutations
-- Disabled users cannot log in
+- JWT authentication (HS256, algorithm pinned on both sign and verify) with required `JWT_SECRET` — no default.
+- Separate `SDK_JWT_SECRET` for verifying the public-API `x-user-id` identity token, so a leaked SDK secret cannot be used to forge admin sessions.
+- AES-256-GCM encryption for secrets at rest (unique IV per value, 32-byte master key). `ENCRYPTION_KEY` is required at startup.
+- bcrypt password hashing (12 salt rounds). Login runs `bcrypt.compare` against a placeholder hash on user-not-found so response latency does not leak email existence.
+- API keys are stored as SHA-256 hashes (`api_keys.key_hash`). The plaintext is returned exactly once at creation; a database dump exposes only hashes.
+- Admin role is re-checked from the database on every `/api/admin/*` request, so demoting or disabling an account takes effect immediately rather than at JWT expiry.
+- Secret reveal endpoint is admin-only.
+- Zod schemas validate every mutating request body at the route boundary; malformed input returns 400 before the use case runs.
+- Admin user listings never include `passwordHash`.
+- Two-tier rate limiting: generous for cached responses (configurable, default 100k/min), strict for DB hits (configurable, default 100/min).
+- Rate limits configurable via admin settings, stored in Postgres, served from Redis.
+- Helmet security headers, CORS origin pinned via `CORS_ORIGIN`.
+- API keys via `x-api-key` header only.
+- Request body size limited to 1MB.
+- Audit logging for all resource mutations (sensitive payloads like setting values are deliberately excluded from audit detail strings).
+- Disabled users cannot log in.
 
 ## Development
 
@@ -293,13 +312,14 @@ npx semaforo --port 8080 --data-dir ./my-data
 npx semaforo -c ./my-config.json
 ```
 
-The config file (`config.json`) stores `jwtSecret`, `encryptionKey`, `dataDir`, and `port`. CLI flags override config file values. Default config location: `~/.semaforo/config.json`.
+The config file (`config.json`) stores `jwtSecret`, `sdkJwtSecret`, `encryptionKey`, `dataDir`, and `port`. CLI flags override config file values. Default config location: `~/.semaforo/config.json`. Older `config.json` files lacking `sdkJwtSecret` are auto-migrated: a fresh value is minted and persisted on first run after upgrade.
 
 The standalone mode can optionally connect to external PostgreSQL and/or Redis by adding them to the config file:
 
 ```json
 {
   "jwtSecret": "...",
+  "sdkJwtSecret": "...",
   "encryptionKey": "...",
   "port": 3001,
   "postgres": {
@@ -339,7 +359,9 @@ npm install
 npm run build --workspace=@semaforo/domain
 
 # Start API (requires local PostgreSQL and Redis)
-JWT_SECRET=dev-secret CORS_ORIGIN=http://localhost:5173 \
+JWT_SECRET=dev-secret \
+  SDK_JWT_SECRET=$(openssl rand -hex 32) \
+  CORS_ORIGIN=http://localhost:5173 \
   ENCRYPTION_KEY=$(openssl rand -hex 32) \
   npm run dev --workspace=@semaforo/api
 
@@ -491,15 +513,17 @@ Resources: `semaforo_app`, `semaforo_environment`, `semaforo_toggle`, `semaforo_
 | DELETE | `/api/secrets/:secretId` | Delete secret |
 | PUT | `/api/secrets/:secretId/environments/:envId` | Set secret value (encrypted) |
 | GET | `/api/secrets/:secretId/environments/:envId` | Get masked value |
-| POST | `/api/secrets/:secretId/environments/:envId/reveal` | Reveal full value (audit-logged) |
+| POST | `/api/secrets/:secretId/environments/:envId/reveal` | Reveal full value (admin role required, audit-logged) |
 
 ### API Keys (per environment)
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/environments/:envId/api-keys` | List API keys |
-| POST | `/api/environments/:envId/api-keys` | Create API key |
+| GET | `/api/environments/:envId/api-keys` | List API keys (metadata only — hashes, never plaintext) |
+| POST | `/api/environments/:envId/api-keys` | Create API key. Response includes the plaintext exactly once — store it client-side immediately. |
 | DELETE | `/api/api-keys/:keyId` | Delete API key |
+
+API keys are stored as SHA-256 hashes (`api_keys.key_hash`); plaintexts never round-trip through the database. Listing keys after creation returns metadata only, never the original token.
 
 ### App Members
 
