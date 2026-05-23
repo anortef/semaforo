@@ -16,9 +16,10 @@ export function evaluateRollout(
   if (percentage >= 100) return true;
   if (percentage <= 0) return false;
 
-  const bucket = userId
-    ? hashBucket(toggleKey, userId)
-    : Math.random() * 100;
+  const bucket =
+    userId !== undefined
+      ? hashBucket(toggleKey, userId)
+      : Math.random() * 100;
 
   return bucket < percentage;
 }
