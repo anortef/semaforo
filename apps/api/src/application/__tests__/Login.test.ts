@@ -50,29 +50,64 @@ describe("Login", () => {
     await repository.save(user);
   });
 
-  it("returns a token for valid credentials", async () => {
+  it("returns a non-empty string token for valid credentials", async () => {
     const result = await useCase.execute({
       email: "test@example.com",
       password: "password123",
     });
 
-    expect(result.token).toBeDefined();
+    expect(typeof result.token).toBe("string");
+    expect(result.token.length).toBeGreaterThan(0);
+  });
+
+  it("returns an object whose only key is `token`", async () => {
+    const result = await useCase.execute({
+      email: "test@example.com",
+      password: "password123",
+    });
+
+    expect(Object.keys(result)).toEqual(["token"]);
+  });
+
+  it("encodes the userId, email, and role into the returned token", async () => {
+    const result = await useCase.execute({
+      email: "test@example.com",
+      password: "password123",
+    });
     const decoded = jwt.verify(result.token, JWT_SECRET) as Record<string, unknown>;
     expect(decoded.userId).toBe("user-1");
     expect(decoded.email).toBe("test@example.com");
     expect(decoded.role).toBe("admin");
   });
 
-  it("rejects unknown email", async () => {
-    await expect(
-      useCase.execute({ email: "nobody@example.com", password: "password123" })
-    ).rejects.toThrow("Invalid credentials");
+  it("rejects unknown email with the exact 'Invalid credentials' message", async () => {
+    let message: string | null = null;
+    try {
+      await useCase.execute({ email: "nobody@example.com", password: "password123" });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toBe("Invalid credentials");
   });
 
-  it("rejects wrong password", async () => {
-    await expect(
-      useCase.execute({ email: "test@example.com", password: "wrong" })
-    ).rejects.toThrow("Invalid credentials");
+  it("rejects wrong password with the exact 'Invalid credentials' message", async () => {
+    let message: string | null = null;
+    try {
+      await useCase.execute({ email: "test@example.com", password: "wrong" });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toBe("Invalid credentials");
+  });
+
+  it("does not return a token when the password is wrong", async () => {
+    let resolved: unknown = undefined;
+    try {
+      resolved = await useCase.execute({ email: "test@example.com", password: "wrong" });
+    } catch {
+      /* expected */
+    }
+    expect(resolved).toBeUndefined();
   });
 
   it("rejects a disabled user even with the correct password", async () => {

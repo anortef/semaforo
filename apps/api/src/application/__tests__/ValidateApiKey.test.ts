@@ -66,6 +66,24 @@ describe("ValidateApiKey", () => {
     expect(result).toBeNull();
   });
 
+  it("short-circuits on empty input without hashing or hitting the repository", async () => {
+    // Insert a key whose stored hash matches the hash of "" — if the empty
+    // check were removed, an empty-string caller would authenticate as this
+    // key. The check must run BEFORE hashApiKey is computed.
+    const { hashApiKey } = await import("../../infrastructure/crypto/hashApiKey.js");
+    await repo.save({
+      id: { value: "weird" },
+      environmentId: "env-zero",
+      name: "weird-empty-hash",
+      keyHash: hashApiKey(""),
+      createdAt: new Date(),
+    });
+
+    const result = await useCase.execute("");
+
+    expect(result).toBeNull();
+  });
+
   it("does not match against a stored plaintext (only the hash)", async () => {
     // Save a key whose `keyHash` field literally holds the plaintext string
     // (a degenerate case representing a misconfigured repo). The validate

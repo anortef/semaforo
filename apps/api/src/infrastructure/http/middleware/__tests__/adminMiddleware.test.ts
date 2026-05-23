@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 import { createAdminMiddleware } from "../adminMiddleware.js";
@@ -116,6 +116,33 @@ describe("adminMiddleware", () => {
     expect(res.status).toBe(403);
   });
 
+  it("returns the standard error message when userId is missing", async () => {
+    const repo = new InMemoryUserRepository();
+
+    const res = await request(buildApp(repo, undefined)).get("/admin");
+
+    expect(res.body.error).toBe("Admin access required");
+  });
+
+  it("returns the standard error message when user is not found", async () => {
+    const repo = new InMemoryUserRepository();
+
+    const res = await request(buildApp(repo, "nobody")).get("/admin");
+
+    expect(res.body.error).toBe("Admin access required");
+  });
+
+  it("returns the standard error message for a disabled admin", async () => {
+    const repo = new InMemoryUserRepository();
+    const u = createUser({ id: "u-1", email: "a@b.com", name: "A", passwordHash: "h", role: "admin" });
+    Object.assign(u as unknown as Record<string, unknown>, { disabled: true });
+    await repo.save(u);
+
+    const res = await request(buildApp(repo, "u-1")).get("/admin");
+
+    expect(res.body.error).toBe("Admin access required");
+  });
+
   it("returns the standard error message for non-admin", async () => {
     const repo = new InMemoryUserRepository();
     await repo.save(
@@ -125,5 +152,35 @@ describe("adminMiddleware", () => {
     const res = await request(buildApp(repo, "u-1")).get("/admin");
 
     expect(res.body.error).toBe("Admin access required");
+  });
+
+  it("does not query the repository when userId is missing (early return)", async () => {
+    const repo = new InMemoryUserRepository();
+    const spy = vi.spyOn(repo, "findById");
+
+    await request(buildApp(repo, undefined)).get("/admin");
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("does not query the repository when userId is a non-string type", async () => {
+    const repo = new InMemoryUserRepository();
+    const spy = vi.spyOn(repo, "findById");
+
+    // Drive a request whose middleware-stack chain placed a non-string into
+    // res.locals.userId — e.g. an attacker-supplied token payload coerced
+    // into a number by an upstream bug. The admin guard must early-return
+    // without making the repository lookup.
+    const app = express();
+    app.use((_req, res, next) => {
+      res.locals.userId = 12345 as unknown as string;
+      next();
+    });
+    app.use(createAdminMiddleware(repo));
+    app.get("/admin", (_req, res) => { res.json({ ok: true }); });
+
+    await request(app).get("/admin");
+
+    expect(spy).not.toHaveBeenCalled();
   });
 });
