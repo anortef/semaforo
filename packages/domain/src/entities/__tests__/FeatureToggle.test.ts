@@ -151,7 +151,7 @@ describe("FeatureToggle properties", () => {
 
   it("only accepts the two declared types", () => {
     fc.assert(
-      fc.property(fc.constantFrom("boolean", "string"), (type) => {
+      fc.property(fc.constantFrom("boolean" as const, "string" as const), (type) => {
         const toggle = createFeatureToggle({ ...validToggleParams, type });
         return toggle.type === type;
       }),

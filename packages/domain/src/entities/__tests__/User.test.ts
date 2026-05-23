@@ -185,7 +185,7 @@ describe("User properties", () => {
 
   it("only accepts the two declared roles", () => {
     fc.assert(
-      fc.property(fc.constantFrom("admin", "user"), (role) => {
+      fc.property(fc.constantFrom("admin" as const, "user" as const), (role) => {
         const user = createUser({ ...validUserParams, role });
         return user.role === role;
       }),
